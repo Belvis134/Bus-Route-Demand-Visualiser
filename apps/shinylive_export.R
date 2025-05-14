@@ -12,7 +12,7 @@ export_output <- capture.output({shinylive::export(appdir = "apps/brdv", destdir
 cat(export_output, sep = "\n")
 index_file <- "docs/index.html"
 html_lines <- readLines(index_file)
-html_lines <- gsub("<title>.*</title>", "<title>Bus Route Demand Visualiser 1.2.6</title>", html_lines)
+html_lines <- gsub("<title>.*</title>", "<title>Bus Route Demand Visualiser 1.3.0</title>", html_lines)
 cache_control1 <- '<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">'
 cache_control2 <- '<meta http-equiv="Pragma" content="no-cache">'
 cache_control3 <- '<meta http-equiv="Expires" content="0">'

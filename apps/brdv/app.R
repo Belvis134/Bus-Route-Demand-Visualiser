@@ -38,6 +38,12 @@ if (current_day >= 10) {
     max_month <- paste0(current_year,"-",current_month-2)
   }
 }
+repo_min_month <- "2025-03"
+if (current_day >= 2) {
+  busrouter_max_month <- paste0(current_year,"-",current_month)
+} else {
+  busrouter_max_month <- paste0(current_year,"-",current_month-1)
+}
 
 ui <- fluidPage(
   
@@ -67,21 +73,15 @@ ui <- fluidPage(
     tags$script(src = "../www/discord_data_transfer.js")
   ),
   
-  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.2.6")),
+  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.3.0")),
   sidebarLayout(
     sidebarPanel(
       width = 5,
       style = "background-color: #7F7F7F;",
-      tags$div(tags$h5(strong(tags$i(icon("file-import")), "Do you wish to auto import from LTA Datamall or upload CSV?"))),
-      checkboxInput("autoimport","Import from Datamall", T),
+      tags$div(tags$h5(strong(tags$i(icon("file-import")), "Select how you want to import data."))),
+      radioButtons("import_select","Import data from", choices = c("Datamall import" = "datamall_import", "Get from repository" = "repository_import", "File upload" = "file_upload"), inline = T),
       conditionalPanel(
-        condition = "input.autoimport == false",
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File upload successful!'.", class = "red_text"))),
-        fileInput("data1_in", "Choose LTA Origin-Destination CSV", width = "500px",
-                  accept = c(".csv", ".docx", ".doc"),
-        )),
-      conditionalPanel(
-        condition = "input.autoimport == true",
+        condition = "input.import_select == 'datamall_import'",
         tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "If the default account key is rate limited, use your own.", class = "red_text"))),
         checkboxInput("use_own_key", "Use your own account key", F),
         conditionalPanel(
@@ -92,13 +92,35 @@ ui <- fluidPage(
         fluidRow(
           splitLayout(
             paste(" "),
-            airDatepickerInput("date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = min_month, maxDate = max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
-            div(class = "import_shift", actionButton("import", "Import", width = "90px", icon = icon("file-import"))),
-            cellWidths = c("10px","100px","90px")
+            airDatepickerInput("datamall_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = min_month, maxDate = max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
+            div(class = "import_shift", actionButton("import_datamall", "Import from Datamall", width = "180px", icon = icon("file-import"))),
+            cellWidths = c("10px","100px","180px")
           )
         )
       ),
+      conditionalPanel(
+        condition = "input.import_select == 'repository_import'",
+        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File import from Datamall successful!'.", class = "red_text"))),
+        tags$div(tags$h5(strong("Datamall data | BusRouter data", class = "blue_text"))),
+        fluidRow(
+          splitLayout(
+            paste(" "),
+            airDatepickerInput("od_matrix_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
+            airDatepickerInput("busrouter_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = busrouter_max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
+            div(class = "import_shift", actionButton("import_repository", "Import from repository", icon = icon("file-import"), width = "180px")),
+            cellWidths = c("10px","100px","100px","180px")
+          )
+        )
+      ),
+      conditionalPanel(
+        condition = "input.import_select == 'file_upload'",
+        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File upload from local storage successful!'.", class = "red_text"))),
+        fileInput("data1_in", "Choose LTA Origin-Destination CSV", width = "500px",
+                  accept = c(".csv", ".docx", ".doc"),
+        )),
       htmlOutput("upload_conf"),
+      htmlOutput("upload_conf2"),
+      tags$div(tags$h5(strong(tags$i(icon("table")), "Select what type of data to view."))),
       checkboxInput("seespecstops", "See specific bus stops", F),
       conditionalPanel(
         condition = "input.seespecstops == false",
@@ -225,26 +247,25 @@ server <- function(input, output, session) {
     pre_data1 <- read.csv(input$data1_in$datapath, colClasses = c("ORIGIN_PT_CODE" = "character", "DESTINATION_PT_CODE" = "character"))
     if (!is.null(pre_data1)) {
       data1(pre_data1)
-      conf_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> File upload successful!</span>")
+      conf_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> File upload from local storage successful!</span>")
     } else {
       conf_msg("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> File upload failed. Please check for data corruption or correct file format.</span>")
     }
   })
 
-  datamall_params <- eventReactive(input$import, {
-    date <- str_split(input$date, "-")
-    year <- date[[1]][[1]]
-    month <- date[[1]][[2]]
-    date_param <- paste0(year, month)
+  datamall_params <- eventReactive(input$import_datamall, {
     if (input$use_own_key) {
       account_key <- input$own_key
     } else {
       account_key <- "1o+r1yqATGio3Rls/NnQGw=="
     }
     list(
-      date = date_param,
       account_key = account_key
     )
+  })
+  
+  observeEvent(input$import_repository, {
+    session$sendCustomMessage("fetch_github", "")
   })
   
   observeEvent(datamall_params(), {
@@ -271,8 +292,10 @@ server <- function(input, output, session) {
   observeEvent(input$generate, {
     # Only send a fetch command if data2 hasn't been set yet.
     if (is.null(data2)) {
-      # Send the custom message to fetch BusRouter data.
-      session$sendCustomMessage("fetch_busrouter", list())
+      if (!"repository_import" %in% input$import_select) {
+        # Send the custom message to fetch BusRouter data.
+        session$sendCustomMessage("fetch_busrouter", "")
+      }
     }
   })
   
