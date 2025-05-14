@@ -265,7 +265,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$import_repository, {
-    session$sendCustomMessage("fetch_github", "")
+    session$sendCustomMessage("fetch_drive", "")
   })
   
   observeEvent(datamall_params(), {
