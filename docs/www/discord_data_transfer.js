@@ -1,32 +1,46 @@
 // ---Receiving Discord data---
 
-let last_data = null;
+let last_hash = '';
+
+function compute_hash(data) {
+  const encoder = new TextEncoder();
+  const data_string = JSON.stringify(data);
+  const data_buffer = encoder.encode(data_string);
+  return crypto.subtle.digest('SHA-256', data_buffer).then(hash_buffer => {
+    // Convert hash buffer to hex string
+    const hash_array = Array.from(new Uint8Array(hash_buffer));
+    const hash_hex = hash_array.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hash_hex;
+  });
+}
+
 function pollForData() {
   const storage_url = "https://stc-brdv.fly.dev/discord-data-in";
 
   fetch(storage_url)
     .then(response => {
       if (!response.ok) {
-        throw new Error("Failed to fetch incoming Discord data from Netlify.");
+        throw new Error("Failed to fetch incoming Discord data from fly.io.");
       }
       return response.json();
     })
     .then(inbound_discord_data => {
-      // Only log and process if inbound_discord_data is new or not empty
-      if (inbound_discord_data && JSON.stringify(inbound_discord_data) !== JSON.stringify(last_data)) {
-        console.log("New CSV data received:", inbound_discord_data);
-        last_data = inbound_discord_data; // update the last_data variable
-        // Send data to BRDV
-        Shiny.setInputValue("discord_data", inbound_discord_data );
+      if (inbound_discord_data) {
+        compute_hash(inbound_discord_data).then(current_hash => {
+          // Only log and process if the new data hash is different than the last one.
+          if (current_hash !== last_hash) {
+            console.log("New CSV data received:", inbound_discord_data);
+            last_hash = current_hash; // Update our stored hash.
+            // Send data to BRDV (Shiny app).
+            Shiny.setInputValue("discord_data", inbound_discord_data);
+          }
+        });
       }
     })
     .catch(error => {
-      console.error("Error fetching data from Netlify:", error);
+      console.error("Error fetching data from fly.io:", error);
     });
 }
-
-// Ping for data every 3 seconds
-setInterval(pollForData, 3000);
 
 // ---Sending image data---
 

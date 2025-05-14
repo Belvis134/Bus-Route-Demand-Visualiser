@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-  // Fetch Datamall data via Netlify
+  // Fetch Datamall data via fly.io
   Shiny.addCustomMessageHandler('fetch_datamall', function(params) {
     document.getElementById('upload_conf').innerHTML =
       '<span style=\"color:#2050C0; font-weight:bold;\"><i class=\"fas fa-hourglass-half\"></i> Importing from Datamall, please wait...</span>';
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (!response.ok) {
             throw new Error('Your internet is dead. Good job.');
           }
-          return response.text();
+          return response.json();
         });
       })
     ).then(function(return_json_data) {
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', function() {
         data2: return_json_data[0],
         data3: return_json_data[1]
       };
-      Shiny.setInputValue('json_data_in', json_data);
+      Shiny.setInputValue('json_data_in', JSON.stringify(json_data));
       //document.getElementById('result_conf').innerHTML =
         //'<span style=\"color:#00DD00; font-weight:bold;\"><i class=\"fas fa-square-check\"></i> File import successful!</span>';
     })
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', function() {
               if (!response.ok) {
                 throw new Error('Error fetching BusRouter data.');
               }
-              return response.text();
+              return response.json();
             });
         })
       )
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function() {
           data2: return_json_data[0],
           data3: return_json_data[1]
         };
-        Shiny.setInputValue('json_data_in', json_data);
+        Shiny.setInputValue('json_data_in', JSON.stringify(json_data));
         document.getElementById('upload_conf2').innerHTML =
           '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import from repository successful!</span>';
       })

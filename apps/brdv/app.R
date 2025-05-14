@@ -184,8 +184,6 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   
-  normalise_json <- function(json) {fromJSON(json)}
-  
   options(shiny.maxRequestSize=900*1024^2)
   
   discord_data <- reactive({input$discord_data})
@@ -243,7 +241,7 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$data1_in, {
-    req(input$data1_in, !input$autoimport)
+    req(input$data1_in, "file_upload" %in% input$import_select)
     pre_data1 <- read.csv(input$data1_in$datapath, colClasses = c("ORIGIN_PT_CODE" = "character", "DESTINATION_PT_CODE" = "character"))
     if (!is.null(pre_data1)) {
       data1(pre_data1)
