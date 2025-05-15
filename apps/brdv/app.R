@@ -298,6 +298,10 @@ server <- function(input, output, session) {
   })
   
   result <- eventReactive(list(input$generate, fetched_data(), discord_data()), {
+    header_info <- read.csv(text = input$csv_data_in$data1, nrows = 1)
+    print("Columns found in CSV:")
+    print(colnames(header_info))
+    print(cat(substr(input$csv_data_in$data1, 1, 500)))
     if (identical(discord_data(), NULL)) {
       req(input$generate)
     } else {
