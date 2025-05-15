@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fetch data from Google Drive repo.
   Shiny.addCustomMessageHandler('fetch_drive', function(params) {
+    document.getElementById('upload_conf').innerHTML =
+      '<span style="color:#2050C0; font-weight:bold;"><i class="fas fa-hourglass-half"></i> Importing Datamall data from repository, please wait...</span>';
+    document.getElementById('upload_conf2').innerHTML =
+      '<span style="color:#2050C0; font-weight:bold;"><i class="fas fa-hourglass-half"></i> Importing BusRouter data from repository, please wait...</span>';
     // Get the selected dates from the inputs.
     var datamall_date_raw = document.getElementById("od_matrix_date").value;
     var bus_date_raw = document.getElementById("busrouter_date").value;
