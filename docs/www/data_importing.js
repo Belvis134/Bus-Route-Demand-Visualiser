@@ -66,76 +66,42 @@ document.addEventListener('DOMContentLoaded', function() {
     // Get the selected dates from the inputs.
     var datamall_date_raw = document.getElementById("od_matrix_date").value;
     var bus_date_raw = document.getElementById("busrouter_date").value;
-    
     // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
     var datamall_date = datamall_date_raw.replace("-", "");
     var bus_date = bus_date_raw.replace("-", "");
     
     // Fetch data from registry and build the Google Drive URLs for the data.
-    var registry_url = "https://drive.google.com/uc?export=download&id=1aaGg28eZDRh8V87x8aX4CMySllr2LrGP";
-    fetch(registry_url)
+    var repo_endpoint = 'https://stc-brdv.fly.dev/repository?datamall_date=' + datamall_date + '&bus_date=' + bus_date;
+    fetch(repo_endpoint)
     .then(response => response.json())
-    .then(registry => {
-      // Build the Google Drive URL for each file based on the registry.
-      var od_link = "https://drive.google.com/uc?export=download&id=" +
-        registry.datamall['origin_destination_bus_' + datamall_date + '.csv'];
-      var repo_json_urls = [
-        "https://drive.google.com/uc?export=download&id=" +
-          registry.busrouter.services['services_' + bus_date + '.json'],
-        "https://drive.google.com/uc?export=download&id=" +
-          registry.busrouter.stops['stops_' + bus_date + '.json']
-      ];
+    .then(function(raw_data) {
+      // Check if the Datamall portion contains an error:
+      if (raw_data.datamall.error) {
+        document.getElementById('upload_conf').innerHTML =
+          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
+          raw_data.datamall.error + '</span>';
+      } else {
+        Shiny.setInputValue("csv_data_in", { data1: raw_data.datamall });
+        document.getElementById('upload_conf').innerHTML =
+          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import successful!</span>';
+      }
       
-      // Now that we have od_link and repo_json_urls, fetch the Datamall CSV data.
-      fetch(od_link)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error("There is no Datamall data for the specified date.");
-          }
-          return response.text();  // Get the raw file as text.
-        })
-        .then(function(csv_text) {
-          console.log("Datamall data successfully imported!");
-          // Pass the imported data into Shiny
-          Shiny.setInputValue("csv_data_in", { data1: csv_text });
-          document.getElementById('upload_conf').innerHTML =
-            '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import from repository successful!</span>';
-        })
-        .catch(err => {
-          console.error("Error importing Datamall data:", err);
-          document.getElementById('upload_conf').innerHTML =
-            '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> There seems to be no Datamall data on the repository for ' + datamall_date_raw + '...</span>';
-        });
-      
-      // Now fetch the BusRouter JSON data.
-      Promise.all(
-        repo_json_urls.map(function(url) {
-          return fetch(url)
-            .then(function(response) {
-              if (!response.ok) {
-                throw new Error('Error fetching BusRouter data.');
-              }
-              return response.json();
-            });
-        })
-      )
-      .then(function(return_json_data) {
-        var json_data = {
-          data2: return_json_data[0],
-          data3: return_json_data[1]
-        };
-        Shiny.setInputValue('json_data_in', JSON.stringify(json_data));
+      // Handle BusRouter data similarly:
+      if (raw_data.busrouter.error) {
         document.getElementById('upload_conf2').innerHTML =
-          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import from repository successful!</span>';
-      })
-      .catch(err => {
-        console.error(err);
+          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
+          raw_data.busrouter.error + '</span>';
+      } else {
+        Shiny.setInputValue('json_data_in', JSON.stringify(raw_data.busrouter));
         document.getElementById('upload_conf2').innerHTML =
-          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> There seems to be no BusRouter data on the repository for ' + bus_date_raw + '...</span>';
-      });
+          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import successful!</span>';
+      }
     })
     .catch(error => {
-      console.error("Error fetching registry:", error);
+      console.error("Error fetching repository data:", error);
+      // Display a general error message if the fetch itself fails
+      document.getElementById('upload_conf').innerHTML =
+          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' + error.message + '</span>';
     });
   });
 
