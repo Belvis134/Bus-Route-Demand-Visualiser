@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         Shiny.setInputValue("csv_data_in", { data1: raw_data.datamall });
         document.getElementById('upload_conf').innerHTML =
-          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import successful!</span>';
+          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import from repository successful!</span>';
       }
       
       // Handle BusRouter data similarly:
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
       } else {
         Shiny.setInputValue('json_data_in', JSON.stringify(raw_data.busrouter));
         document.getElementById('upload_conf2').innerHTML =
-          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import successful!</span>';
+          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import from repository successful!</span>';
       }
     })
     .catch(error => {
