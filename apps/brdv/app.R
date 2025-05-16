@@ -319,6 +319,7 @@ server <- function(input, output, session) {
       data2 <- json_data$data2
       data3 <- json_data$data3
     }
+    print(cat(substr(data1(), 1, 200))))
     svc2 <- as.character(svc())
     dir2 <- as.numeric(dir())
     if (identical(day_filter(), "combined")) {
@@ -374,6 +375,7 @@ server <- function(input, output, session) {
     if (identical(spec_stops(), F)) {
       stop_half_opt = svc_half()
       stop_cur <- data2[[svc2]]$routes[[dir2]]
+      print(data2[[svc2]]$routes)
       if (is.null(stop_cur)) {
         tryCatch({
           conf_msg2(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus service. Is your bus service withdrawn?</span>"))
