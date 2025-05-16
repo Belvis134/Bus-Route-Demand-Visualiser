@@ -75,38 +75,49 @@ document.addEventListener('DOMContentLoaded', function() {
     var bus_date = bus_date_raw.replace("-", "");
     
     // Fetch data from registry and build the Google Drive URLs for the data.
-    var repo_endpoint = 'https://stc-brdv.fly.dev/repository?datamall_date=' + datamall_date + '&bus_date=' + bus_date;
-    fetch(repo_endpoint)
-    .then(response => response.json())
-    .then(function(raw_data) {
-      // Check if the Datamall portion contains an error:
-      if (raw_data.datamall.error) {
-        document.getElementById('upload_conf').innerHTML =
-          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
-          raw_data.datamall.error + '</span>';
-      } else {
-        Shiny.setInputValue("csv_data_in", { data1: raw_data.datamall });
+    // Fetch Datamall CSV data via its dedicated endpoint:
+    var datamall_repository = 'https://stc-brdv.fly.dev/repository/datamall?datamall_date=' + datamall_date;
+    fetch(datamall_repository)
+      .then(response => {
+        if (!response.ok) {
+          // If the response status indicates an error, parse the error
+          return response.text().then(text => {
+            throw new Error(text);
+          });
+        }
+        return response.text();
+      })
+      .then(function(csv_data) {
+        Shiny.setInputValue("csv_data_in", { data1: csv_data });
         document.getElementById('upload_conf').innerHTML =
           '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import from repository successful!</span>';
-      }
-      
-      // Handle BusRouter data similarly:
-      if (raw_data.busrouter.error) {
-        document.getElementById('upload_conf2').innerHTML =
+      })
+      .catch(error => {
+        document.getElementById('upload_conf').innerHTML =
           '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
-          raw_data.busrouter.error + '</span>';
-      } else {
-        Shiny.setInputValue('json_data_in', JSON.stringify(raw_data.busrouter));
+          error.message + '</span>';
+      });
+
+    var busrouter_repository = 'https://stc-brdv.fly.dev/repository/busrouter?bus_date=' + bus_date;
+    fetch(busrouter_repository)
+      .then(response => {
+        if (!response.ok) {
+          return response.text().then(text => {
+            throw new Error(text);
+          });
+        }
+        return response.text();
+      })
+      .then(function(busrouter_data) {
+        Shiny.setInputValue('json_data_in', busrouter_data);
         document.getElementById('upload_conf2').innerHTML =
           '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import from repository successful!</span>';
-      }
-    })
-    .catch(error => {
-      console.error("Error fetching repository data:", error);
-      // Display a general error message if the fetch itself fails
-      document.getElementById('upload_conf').innerHTML =
-          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' + error.message + '</span>';
-    });
+      })
+      .catch(error => {
+        document.getElementById('upload_conf2').innerHTML =
+          '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
+          error.message + '</span>';
+      });
   });
 
   // Clear cache upon refresh
