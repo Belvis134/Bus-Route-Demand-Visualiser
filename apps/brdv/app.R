@@ -319,7 +319,7 @@ server <- function(input, output, session) {
       data2 <- json_data$data2
       data3 <- json_data$data3
     }
-    print(cat(substr(data1(), 1, 200))))
+    print(cat(substr(data1(), 1, 200)))
     svc2 <- as.character(svc())
     dir2 <- as.numeric(dir())
     if (identical(day_filter(), "combined")) {
