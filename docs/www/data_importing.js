@@ -51,8 +51,8 @@ document.addEventListener('DOMContentLoaded', function() {
         data3: return_json_data[1]
       };
       Shiny.setInputValue('json_data_in', JSON.stringify(json_data));
-      //document.getElementById('result_conf').innerHTML =
-        //'<span style=\"color:#00DD00; font-weight:bold;\"><i class=\"fas fa-square-check\"></i> File import successful!</span>';
+      document.getElementById('result_conf').innerHTML =
+        '<span style=\"color:#00DD00; font-weight:bold;\"><i class=\"fas fa-square-check\"></i> File import from BusRouter successful!</span>';
     })
     .catch(err => {
       console.error(err);
