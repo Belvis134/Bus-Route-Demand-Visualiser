@@ -51,31 +51,26 @@ document.addEventListener('DOMContentLoaded', function() {
         data3: return_json_data[1]
       };
       Shiny.setInputValue('json_data_in', JSON.stringify(json_data));
-      document.getElementById('result_conf').innerHTML =
+      document.getElementById('upload_conf2').innerHTML =
         '<span style=\"color:#00DD00; font-weight:bold;\"><i class=\"fas fa-square-check\"></i> File import from BusRouter successful!</span>';
     })
     .catch(err => {
       console.error(err);
-      document.getElementById('result_conf').innerHTML =
+      document.getElementById('upload_conf2').innerHTML =
           '<span style=\"color:#BB0000; font-weight:bold;\"><i class=\"fas fa-triangle-exclamation\"></i> ' + err + '</span>';
     });
   });
 
   // Fetch data from Google Drive repo.
-  Shiny.addCustomMessageHandler('fetch_drive', function(params) {
+  Shiny.addCustomMessageHandler('fetch_drive_datamall', function(params) {
     document.getElementById('upload_conf').innerHTML =
       '<span style="color:#2050C0; font-weight:bold;"><i class="fas fa-hourglass-half"></i> Importing Datamall data from repository, please wait...</span>';
-    document.getElementById('upload_conf2').innerHTML =
-      '<span style="color:#2050C0; font-weight:bold;"><i class="fas fa-hourglass-half"></i> Importing BusRouter data from repository, please wait...</span>';
     // Get the selected dates from the inputs.
     var datamall_date_raw = document.getElementById("od_matrix_date").value;
-    var bus_date_raw = document.getElementById("busrouter_date").value;
     // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
     var datamall_date = datamall_date_raw.replace("-", "");
-    var bus_date = bus_date_raw.replace("-", "");
     
-    // Fetch data from registry and build the Google Drive URLs for the data.
-    // Fetch Datamall CSV data via its dedicated endpoint:
+    // Fetch Datamall CSV data from repository via its dedicated endpoint:
     var datamall_repository = 'https://stc-brdv.fly.dev/repository/datamall?datamall_date=' + datamall_date;
     fetch(datamall_repository)
       .then(response => {
@@ -97,7 +92,17 @@ document.addEventListener('DOMContentLoaded', function() {
           '<span style="color:#BB0000; font-weight:bold;"><i class="fas fa-triangle-exclamation"></i> ' +
           error.message + '</span>';
       });
+  });
 
+   Shiny.addCustomMessageHandler('fetch_drive_busrouter', function(params) {
+    document.getElementById('upload_conf2').innerHTML =
+      '<span style="color:#2050C0; font-weight:bold;"><i class="fas fa-hourglass-half"></i> Importing BusRouter data from repository, please wait...</span>';
+    // Get the selected dates from the inputs.
+    var bus_date_raw = document.getElementById("busrouter_date").value;
+    // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
+    var bus_date = bus_date_raw.replace("-", "");
+    
+    // Fetch BusRouter JSON data from repository via its dedicated endpoint:
     var busrouter_repository = 'https://stc-brdv.fly.dev/repository/busrouter?bus_date=' + bus_date;
     fetch(busrouter_repository)
       .then(response => {
@@ -106,10 +111,10 @@ document.addEventListener('DOMContentLoaded', function() {
             throw new Error(text);
           });
         }
-        return response.text();
+        return response.json();
       })
       .then(function(busrouter_data) {
-        Shiny.setInputValue('json_data_in', busrouter_data);
+        Shiny.setInputValue('json_data_in', JSON.stringify(busrouter_data));
         document.getElementById('upload_conf2').innerHTML =
           '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> BusRouter data import from repository successful!</span>';
       })

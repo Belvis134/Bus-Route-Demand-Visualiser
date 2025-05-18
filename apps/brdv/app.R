@@ -78,7 +78,8 @@ ui <- fluidPage(
     sidebarPanel(
       width = 5,
       style = "background-color: #7F7F7F;",
-      tags$div(tags$h5(strong(tags$i(icon("file-import")), "Select how you want to import data."))),
+      tags$div(tags$h4(strong(tags$i(icon("file-import")), "Please import your data from BusRouter and Datamall."))),
+      tags$div(tags$h5(strong("Import from Datamall", class = "blue_text"))),
       radioButtons("import_select","Import data from", choices = c("Datamall import" = "datamall_import", "Get from repository" = "repository_import", "File upload" = "file_upload"), inline = T),
       conditionalPanel(
         condition = "input.import_select == 'datamall_import'",
@@ -101,26 +102,49 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.import_select == 'repository_import'",
         tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File import from Datamall successful!'.", class = "red_text"))),
-        tags$div(tags$h5(strong("Datamall data | BusRouter data", class = "blue_text"))),
         fluidRow(
           splitLayout(
             paste(" "),
             airDatepickerInput("od_matrix_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
-            airDatepickerInput("busrouter_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = busrouter_max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
             div(class = "import_shift", actionButton("import_repository", "Import from repository", icon = icon("file-import"), width = "180px")),
-            cellWidths = c("10px","100px","100px","180px")
+            cellWidths = c("10px","100px","180px")
           )
         )
       ),
       conditionalPanel(
         condition = "input.import_select == 'file_upload'",
         tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File upload from local storage successful!'.", class = "red_text"))),
-        fileInput("data1_in", "Choose LTA Origin-Destination CSV", width = "500px",
+        fileInput("data1_in", "Upload LTA Origin-Destination CSV", width = "500px",
                   accept = c(".csv", ".docx", ".doc"),
         )),
       htmlOutput("upload_conf"),
+      tags$div(tags$h5(strong("Import from BusRouter", class = "blue_text"))),
+      radioButtons("import_select2", "Import data from", choices = c("BusRouter import" = "busrouter_import", "Get from repository" = "repository_import", "File upload" = "file_upload"), inline = T),
+      conditionalPanel(
+        condition = "input.import_select2 == 'busrouter_import'",
+        actionButton("import_busrouter", "Import from BusRouter", width = "190px", icon = icon("file-import")),
+      ),
+      conditionalPanel(
+        condition = "input.import_select2 == 'repository_import'",
+        fluidRow(
+          splitLayout(
+            paste(""),
+            airDatepickerInput("busrouter_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = busrouter_max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
+            div(class = "import_shift", actionButton("import_repository2", "Import from repository", icon = icon("file-import"), width = "180px")),
+            cellWidths = c("10px","100px","180px")
+          )
+        )
+      ),
+      conditionalPanel(
+        condition = "input.import_select2 == 'file_upload'",
+        fileInput("data2_in", "Upload BusRouter Services JSON", width = "500px",
+                  accept = c(".json")),
+        fileInput("data3_in", "Upload BusRouter Stops JSON", width = "500px",
+                  accept = c(".json"))
+      ),
       htmlOutput("upload_conf2"),
-      tags$div(tags$h5(strong(tags$i(icon("table")), "Select what type of data to view."))),
+      htmlOutput("upload_conf3"),
+      tags$div(tags$h4(strong(tags$i(icon("table")), "Select what type of data to view."))),
       checkboxInput("seespecstops", "See specific bus stops", F),
       conditionalPanel(
         condition = "input.seespecstops == false",
@@ -132,10 +156,10 @@ ui <- fluidPage(
         condition = "input.seespecstops == true",
         tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "The bus stops you listed in the origin box must be paired with a corresponding bus stop in order in the destination box.", class = "red_text"))),
         tags$div(tags$h5(strong(tags$i(icon("circle-info")), "For example, if you put 10009,10011 as origin, 10017,10018 as destination, 10009 pairs with 10017, 10011 pairs with 10018.", class = "blue_text"))),
-        textInput("ori_stops", "Which specific origin stops? Put a comma between bus stops.", width = "500px", value = "null"),
+        textInput("ori_stops", "Which specific origin stops? Put a comma between bus stops.", width = "500px"),
         textInput("dst_stops", "Which specific destination stops? Put a comma between bus stops.", width = "500px")
       ),
-      tags$div(tags$h4(strong("Please select your filters. Filters available include time and day type filters."))),
+      tags$div(tags$h4(strong(tags$i(icon("filter")),"Please select your filters. Filters available include time and day type filters."))),
       radioButtons("day_filter", HTML(paste(icon("calendar"), "Select Day Type filter")), choices = c("Combined" = "combined","Weekday" = "weekday","Weekend/PH" = "weekend_ph"), selected = c("combined"), inline = T),
       tags$div(tags$h5(strong(tags$i(icon("clock")), "Select Time Period filter"))),
       checkboxInput("time_filter","Filter by Time Period", F),
@@ -221,10 +245,12 @@ server <- function(input, output, session) {
   })
   display_stop_names <- reactive({list(discord_data()$rows, discord_data()$columns, discord_data()$cells)})
   data1 <- reactiveVal(NULL)
-  data2 <- NULL
+  data2 <- reactiveVal(NULL)
+  data3 <- reactiveVal(NULL)
   conf_msg <- reactiveVal("")
   conf_msg2 <- reactiveVal("")
-  fetched_data <- reactiveVal(NULL)
+  conf_msg3 <- reactiveVal("")
+  result_msg <- reactiveVal("")
   
   interval2hours <- function(start, end) {
     start <- as.numeric(start)
@@ -241,13 +267,38 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$data1_in, {
+    conf_msg("")
     req(input$data1_in, "file_upload" %in% input$import_select)
     pre_data1 <- read.csv(input$data1_in$datapath, colClasses = c("ORIGIN_PT_CODE" = "character", "DESTINATION_PT_CODE" = "character"))
     if (!is.null(pre_data1)) {
       data1(pre_data1)
-      conf_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> File upload from local storage successful!</span>")
+      conf_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Datamall CSV upload from local storage successful!</span>")
     } else {
-      conf_msg("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> File upload failed. Please check for data corruption or correct file format.</span>")
+      conf_msg("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Datamall CSV upload failed. Please check for data corruption or correct file format.</span>")
+    }
+  })
+  
+  observeEvent(input$data2_in, {
+    conf_msg2("")
+    req(input$data2_in, "file_upload" %in% input$import_select2)
+    pre_data2 <- jsonlite::fromJSON(input$data2_in$datapath)
+    if (!is.null(pre_data2[[1]]$routes)) {
+      data2(pre_data2)
+      conf_msg2("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> BusRouter Services JSON upload from local storage successful!</span>")
+    } else {
+      conf_msg2("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> BusRouter Services JSON upload failed. Please check for data corruption or correct file format.</span>")
+    }
+  })
+  
+  observeEvent(input$data3_in, {
+    conf_msg3("")
+    req(input$data3_in, "file_upload" %in% input$import_select2)
+    pre_data3 <- jsonlite::fromJSON(input$data3_in$datapath)
+    if (pre_data3[["10009"]][[3]] != "Bukit Merah Int") {
+      data3(pre_data3)
+      conf_msg3("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> BusRouter Stops JSON upload from local storage successful!</span>")
+    } else {
+      conf_msg3("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> BusRouter Stops JSON upload failed. Please check for data corruption or correct file format.</span>")
     }
   })
 
@@ -262,12 +313,26 @@ server <- function(input, output, session) {
     )
   })
   
-  observeEvent(input$import_repository, {
-    session$sendCustomMessage("fetch_drive", "")
-  })
-  
   observeEvent(datamall_params(), {
     session$sendCustomMessage("fetch_datamall", datamall_params())
+  })
+  
+  observeEvent(input$import_busrouter, {
+    conf_msg2("")
+    conf_msg3("")
+    session$sendCustomMessage("fetch_busrouter", "")
+  })
+  
+  observeEvent(input$import_repository, {
+    conf_msg2("")
+    conf_msg3("")
+    session$sendCustomMessage("fetch_drive_datamall", "")
+  })
+  
+  observeEvent(input$import_repository2, {
+    conf_msg2("")
+    conf_msg3("")
+    session$sendCustomMessage("fetch_drive_busrouter", "")
   })
   
   observeEvent(input$csv_data_in$data1, {
@@ -281,23 +346,15 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$json_data_in, {
-    # If the JS sends a JSON string, store it directly.
-    if (is.null(data2)) {
-    fetched_data(input$json_data_in)
-    }
+    busrouter_data <- fromJSON(input$json_data_in)
+    data2(busrouter_data$data2)
+    data3(busrouter_data$data3)
   })
   
-  observeEvent(input$generate, {
-    # Only send a fetch command if data2 hasn't been set yet.
-    if (is.null(data2)) {
-      if (!"repository_import" %in% input$import_select) {
-        # Send the custom message to fetch BusRouter data.
-        session$sendCustomMessage("fetch_busrouter", "")
-      }
-    }
-  })
-  
-  result <- eventReactive(list(input$generate, fetched_data(), discord_data()), {
+  result <- eventReactive(list(input$generate, discord_data()), {
+    print(cat(substr(data1(), 1, 200)))
+    print(cat(substr(data2(), 1, 200)))
+    print(cat(substr(data3(), 1, 200)))
     if (identical(discord_data(), NULL)) {
       req(input$generate)
     } else {
@@ -306,21 +363,37 @@ server <- function(input, output, session) {
     # Check that data1 exists before proceeding.
     if (is.null(data1())) {
       tryCatch({
-        conf_msg2(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You need to upload something, if not what do you wanna see?!</span>"))
-        stop("data1 not defined.")
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You need to upload Datamall data, if not what do you wanna see?!</span>"))
+        stop()
       }, error = function(e) {
-        print(e$message)
-        stop("")
+        print("data1 not defined.")
+        stop()
       })
     }
-    if (is.null(data2)) {
-      req(fetched_data())
-      json_data <- fromJSON(fetched_data())
-      data2 <- json_data$data2
-      data3 <- json_data$data3
+    # Check that data2 exists before proceeding.
+    if (is.null(data2())) {
+      tryCatch({
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You need to upload BusRouter Services data, if not what do you wanna see?!</span>"))
+        stop()
+      }, error = function(e) {
+        print("data2 not defined.")
+        stop()
+      })
+    }
+    # Check that data3 exists before proceeding.
+    if (is.null(data3())) {
+      tryCatch({
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You need to upload BusRouter Stops data, if not what do you wanna see?!</span>"))
+        stop()
+      }, error = function(e) {
+        print("data3 not defined.")
+        stop()
+      })
     }
     svc2 <- as.character(svc())
     dir2 <- as.numeric(dir())
+    data2_2 <- data2()
+    data3_2 <- data3()
     if (identical(day_filter(), "combined")) {
       day_type <- "Combined"
     } else if (identical(day_filter(), "weekday")) {
@@ -335,7 +408,7 @@ server <- function(input, output, session) {
     } else {
       quo(TRUE)
     }
-    if (time_filter()) {
+    if (identical(time_filter(), TRUE)) {
       time_period <- NULL 
       if (!identical(discord_data()$time_periods, NULL)) {
         defined_periods <- discord_data()$time_periods
@@ -373,17 +446,17 @@ server <- function(input, output, session) {
     }
     if (identical(spec_stops(), F)) {
       stop_half_opt = svc_half()
-      stop_cur <- data2[[svc2]]$routes[[dir2]]
+      stop_cur <- data2_2[[svc2]]$routes[[dir2]]
       if (is.null(stop_cur)) {
         tryCatch({
-          conf_msg2(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus service. Is your bus service withdrawn?</span>"))
+          result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus service. Is your bus service withdrawn?</span>"))
           stop("Invalid bus service.")
         }, error = function(e) {
           stop(e$message)
         })
       }
-      terminus <- data3[[(stop_cur[length(stop_cur)])]][[3]]
-      is_2way <- length(data2[[svc2]]$routes)
+      terminus <- data3_2[[(stop_cur[length(stop_cur)])]][[3]]
+      is_2way <- length(data2_2[[svc2]]$routes)
       stop_half <- round(length(stop_cur)/2)
       if (is_2way == 2){
         if (identical(stop_half_opt, "1st half")){
@@ -410,7 +483,7 @@ server <- function(input, output, session) {
       V <- length(stop_cur2)
       stop_names <- data.frame(as.character(c(stop_cur2)),c(1:V))
       for (j in 1:V){
-        stop_names[j,2] <- data3[[(stop_cur2[j])]][[3]]
+        stop_names[j,2] <- data3_2[[(stop_cur2[j])]][[3]]
       }
       stop_cur0a <- data.frame(org = 1:V, ORIGIN_PT_CODE = stop_cur2)
       stop_cur0b <- data.frame(dst = 1:V, DESTINATION_PT_CODE = stop_cur2)
@@ -520,7 +593,7 @@ server <- function(input, output, session) {
       l_dst <- length(dst_stops[[1]])
       if (l_ori != l_dst) {
         tryCatch({
-          conf_msg2(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> The lengths of your origin stops and destination stops do not match.</span>"))
+          result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> The lengths of your origin stops and destination stops do not match.</span>"))
           stop("Length of origin stops not equal to length of destination stops.")
         }, error = function(e) {
           stop(e$message)
@@ -541,7 +614,7 @@ server <- function(input, output, session) {
           !!filter_day_type, !!filter_time_period))
         if (valid_stops == 0) {
           tryCatch({
-            conf_msg2(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus stop code(s) detected! Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B.</span>"))
+            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus stop code(s) detected! Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B.</span>"))
             stop("Invalid stop codes or no demand.")
           }, error = function(e) {
             stop(e$message)
@@ -556,8 +629,8 @@ server <- function(input, output, session) {
           pull(Total) %>%
           as.numeric()
         if ("row_names" %in% input$stop_names || display_stop_names()$cells == TRUE) {
-          dataod3a[t, 1] <- data3[[as.character(ori_stop)]][[3]]
-          dataod3a[t, 2] <- data3[[as.character(dst_stop)]][[3]]
+          dataod3a[t, 1] <- data3_2[[as.character(ori_stop)]][[3]]
+          dataod3a[t, 2] <- data3_2[[as.character(dst_stop)]][[3]]
          }
       }
       dataod3 <- as.matrix(dataod3)
@@ -627,11 +700,11 @@ server <- function(input, output, session) {
     if (identical(spec_stops(), FALSE)) {
       req(result())
       draw(result()$img)
-      conf_msg2("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Heatmap successfully drawn!</span>")
+      result_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Heatmap successfully drawn!</span>")
     } else {
       req(result())
       draw(result()$img, heatmap_legend_side = "top")
-      conf_msg2("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Heatmap successfully drawn!</span>")
+      result_msg("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Heatmap successfully drawn!</span>")
     }
     dev.off()
     list(
@@ -653,7 +726,9 @@ server <- function(input, output, session) {
   })
   observe(result())
   output$upload_conf <- renderText({HTML(conf_msg())})
-  output$result_conf <- renderText({HTML(conf_msg2())})
+  output$upload_conf2 <- renderText({HTML(conf_msg2())})
+  output$upload_conf3 <- renderText({HTML(conf_msg3())})
+  output$result_conf <- renderText({HTML(result_msg())})
 }
 
 shinyApp(ui, server)
