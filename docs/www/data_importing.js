@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Fetch JSON data (data2 & data3) from BusRouter.
   Shiny.addCustomMessageHandler('fetch_busrouter', function(params) {
-    document.getElementById('result_conf').innerHTML =
+    document.getElementById('upload_conf2').innerHTML =
     '<span style=\"color:#2050C0; font-weight:bold;\"><i class=\"fas fa-hourglass-half\"></i> Importing from BusRouter, please wait...</span>';
     var json_urls = [
       'https://data.busrouter.sg/v1/services.json',

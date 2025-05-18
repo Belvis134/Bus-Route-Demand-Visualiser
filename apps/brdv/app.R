@@ -352,9 +352,6 @@ server <- function(input, output, session) {
   })
   
   result <- eventReactive(list(input$generate, discord_data()), {
-    print(cat(substr(data1(), 1, 200)))
-    print(cat(substr(data2(), 1, 200)))
-    print(cat(substr(data3(), 1, 200)))
     if (identical(discord_data(), NULL)) {
       req(input$generate)
     } else {
