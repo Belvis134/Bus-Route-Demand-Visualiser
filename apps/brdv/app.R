@@ -466,7 +466,7 @@ server <- function(input, output, session) {
       account_key <- "1o+r1yqATGio3Rls/NnQGw=="
     }
     list(
-      account_key = account_key,
+      account_key = account_key
     )
   })
   
@@ -495,7 +495,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$import_repository2, {
     conf_msg3("")
-    if (input$busrouter_data_type == "bus") {
+    if (input$json_data_type == "bus") {
       data_type2("bus")
       data_type3("bus")
     } else {
