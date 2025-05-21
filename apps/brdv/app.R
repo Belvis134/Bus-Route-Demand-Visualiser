@@ -351,15 +351,13 @@ server <- function(input, output, session) {
     return("#000000")  # Default colour if no code matches.
   }
   
-  get_labels <- function(show_both, label_type) {
+  get_labels <- function(show_both, label_type, route1, route2, stop_names, stop_names2) {
     # Determine which stop table to use
     if (label_type == "column") {
       if ("by_bus_svc" %in% heatmap_type()) {
         stops <- stop_names[1:(nrow(stop_names)-1), ]
-      } else if (route1 == route2) {
-        stops <- stop_names[1:nrow(stop_names), ]
       } else {
-        stops <- stop_names2[1:nrow(stop_names2), ]
+        stops <- stop_names[1:nrow(stop_names), ]
       }
     } else if (label_type == "row") {
       if ("by_bus_svc" %in% heatmap_type()) {
@@ -704,6 +702,8 @@ server <- function(input, output, session) {
         for (j in 1:W){
           stop_names2[j,2] <- data3[[(stop_cur2[j])]][[1]]
         }
+      } else {
+        stop_names2 <- NULL
       }
       stop_cur1a <- compound_route(stop_cur1a, data1)
       if ("by_mrt_line" %in% heatmap_type()) {
@@ -795,9 +795,9 @@ server <- function(input, output, session) {
       }
       # Row and column names
       stop_names_in_column <- ("column_names" %in% input$stop_names || display_stop_names()$columns == TRUE)
-      column_labels <- get_labels(stop_names_in_column, "column")
+      column_labels <- get_labels(stop_names_in_column, "column", route1, route2, stop_names, stop_names2)
       stop_names_in_row <- ("row_names" %in% input$stop_names || display_stop_names()$rows == TRUE)
-      row_labels <- get_labels(stop_names_in_row, "row")
+      row_labels <- get_labels(stop_names_in_row, "row", route1, route2, stop_names, stop_names2)
       # Heatmap legend names
       lgd_name1 <- if ("by_bus_svc" %in% heatmap_type()) {
         paste("O-D matrix (en-route)\n",data1$YEAR_MONTH[[1]],"\n",day_type," Demand\n\nService ",route1,"\n",dir_graph,"\n",terminus," Bound\n",sep = "")
@@ -821,7 +821,6 @@ server <- function(input, output, session) {
       line_col1b <- if ("by_mrt_line" %in% heatmap_type()) {line_cols[[route2]]} else {"#000000"}
       # Heatmap size
       img_dims <- list(width = 39 * ncol(dataod1c) + 320, height = 22 * nrow(dataod1c) + 200)
-      
       # Heatmap config
       img <- Heatmap(dataod1c,
        name = lgd_name1,
