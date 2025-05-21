@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const data_type = document.querySelector('input[name="datamall_data_type"]:checked').value;
     
     // Fetch Datamall CSV data from repository via its dedicated endpoint:
-    var datamall_repository = 'https://stc-brdv.fly.dev/repository/datamall?datamall_date=' + datamall_date + '?data_type=' + data_type;
+    var datamall_repository = `https://stc-brdv.fly.dev/repository/datamall?datamall_date=${datamall_date}&data_type=${data_type}`;
     fetch(datamall_repository)
       .then(response => {
         if (!response.ok) {
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     // Fetch BusRouter or MRT line and station names JSON data from repository via a dedicated endpoint:
-    const endpoint = `https://stc-brdv.fly.dev/repository/busrouter?bus_date=${bus_date}?data_type=${data_type}`
+    const endpoint = `https://stc-brdv.fly.dev/repository/busrouter?bus_date=${bus_date}&data_type=${data_type}`
     fetch(endpoint)
       .then(response => {
         if (!response.ok) {
