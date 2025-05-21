@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var bus_date = bus_date_raw.replace("-", "");
     const data_type = document.querySelector('input[name="json_data_type"]:checked').value;
     if (data_type === "bus" && bus_date_raw === null) {
-      reject("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
+      throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     // Fetch BusRouter or MRT line and station names JSON data from repository via a dedicated endpoint:
     const endpoint = `https://stc-brdv.fly.dev/repository/busrouter?bus_date=${bus_date}?data_type=${data_type}`
