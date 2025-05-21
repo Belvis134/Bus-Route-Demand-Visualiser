@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
     var datamall_date = datamall_date_raw.replace("-", "");
     const data_type = document.querySelector('input[name="datamall_data_type"]:checked').value;
-        if (data_type === "bus" && !datamall_date_raw) {
+        if (!datamall_date_raw) {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     const encoded_account_key = encodeURIComponent(params.account_key);
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
     var datamall_date = datamall_date_raw.replace("-", "");
     const data_type = document.querySelector('input[name="datamall_data_type"]:checked').value;
-        if (data_type === "bus" && !datamall_date_raw) {
+        if (!datamall_date_raw) {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     
