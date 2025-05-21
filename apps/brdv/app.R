@@ -93,7 +93,7 @@ ui <- fluidPage(
           condition = "input.use_own_key == true",
           textInput("own_key", HTML(paste(icon("key"), "Your account key")),value = NA, width = "500px")
         ),
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File import successful!'.", class = "red_text"))),
+        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive '... data import from Datamall successful!'.", class = "red_text"))),
         fluidRow(
           splitLayout(
             paste(" "),
@@ -105,7 +105,7 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         condition = "input.import_select == 'repository_import'",
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File import from Datamall successful!'.", class = "red_text"))),
+        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'Datamall ... data import from repository successful!'.", class = "red_text"))),
         fluidRow(
           splitLayout(
             paste(" "),
@@ -471,7 +471,11 @@ server <- function(input, output, session) {
   })
   
   observeEvent(datamall_params(), {
-    data_type1("bus")
+    if ("bus" %in% input$datamall_data_type) {
+      data_type1("bus")
+    } else {
+      data_type1("bus")
+    }
     session$sendCustomMessage("fetch_datamall", datamall_params())
   })
   
@@ -536,7 +540,7 @@ server <- function(input, output, session) {
     }
     if (data_type1() != data_type2() || data_type2() != data_type3()) {
       tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Your uploaded CSV is of type '", data_type1(), "', uploaded JSON are of types '", data_type2(), "','",  "', make up your mind!</span>"))
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Your uploaded CSV is of type '", data_type1(), "', uploaded JSON are of types '", data_type2(), "', '", data_type3(), "', make up your mind!</span>"))
         stop("Data type mismatch.")
       }, error = function(e) {
         print(e$message)

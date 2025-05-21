@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Pass the CSV text to Shiny.
         Shiny.setInputValue('csv_data_in', { data1: csv_text });
         document.getElementById('upload_conf').innerHTML =
-          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> File import from Datamall successful!</span>';
+          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> ${data_type === "bus" ? "O-D Bus" : "O-D Train"} data import from Datamall successful!</span>`;
       })
       .catch(err => {
         console.error(err);
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(csv_data) {
         Shiny.setInputValue("csv_data_in", { data1: csv_data });
         document.getElementById('upload_conf').innerHTML =
-          '<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall data import from repository successful!</span>';
+          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall ${(data_type === "bus") ? "OD-Bus" : "OD-Train"} data import from repository successful!</span>`;
       })
       .catch(error => {
         document.getElementById('upload_conf').innerHTML =
@@ -105,6 +105,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
     var bus_date = bus_date_raw.replace("-", "");
     const data_type = document.querySelector('input[name="json_data_type"]:checked').value;
+    if (data_type === "bus" && bus_date_raw === null) {
+      reject("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
+    }
     // Fetch BusRouter or MRT line and station names JSON data from repository via a dedicated endpoint:
     const endpoint = `https://stc-brdv.fly.dev/repository/busrouter?bus_date=${bus_date}?data_type=${data_type}`
     fetch(endpoint)
