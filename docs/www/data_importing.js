@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const encoded_account_key = encodeURIComponent(params.account_key);
     const csv_proxy_url = 'https://stc-brdv.fly.dev/datamall-proxy' +
       '?date=' + datamall_date +
-      '&account_key=' + encoded_account_key;
+      '&account_key=' + encoded_account_key +
       '&data_type=' + data_type;
     fetch(csv_proxy_url)
       .then(response => {
