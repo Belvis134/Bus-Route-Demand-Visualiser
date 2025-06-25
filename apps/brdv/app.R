@@ -472,7 +472,7 @@ server <- function(input, output, session) {
     if ("bus" %in% input$datamall_data_type) {
       data_type1("bus")
     } else {
-      data_type1("bus")
+      data_type1("train")
     }
     session$sendCustomMessage("fetch_datamall", datamall_params())
   })
