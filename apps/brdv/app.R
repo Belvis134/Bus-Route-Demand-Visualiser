@@ -73,7 +73,7 @@ ui <- fluidPage(
     tags$script(src = "../www/discord_data_transfer.js")
   ),
   
-  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.3.1")),
+  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.3.2")),
   sidebarLayout(
     sidebarPanel(
       width = 6,
@@ -83,12 +83,17 @@ ui <- fluidPage(
       radioButtons("import_select","Import data from", choices = c("Datamall" = "datamall_import", "Repository" = "repository_import", "File upload" = "file_upload"), inline = T),
       conditionalPanel(
         condition = "input.import_select == 'datamall_import' || input.import_select == 'repository_import'",
-        radioButtons("datamall_data_type", "Bus or train data?", choices = c("Bus" = "bus", "Train" = "train"), inline = T),
+        selectInput("datamall_data_type", "Origin-Destination data or specific bus stop/station data?", choices = c("Origin-destination" = "origin_destination", "Specific bus stop / MRT/LRT station tap in/outs" = "specific_stop"), width = "500px"),
+        selectInput("datamall_data_type2", "Bus or train data?", choices = c("Bus" = "bus", "Train" = "train"), width = "500px"),
       ),
       conditionalPanel(
         condition = "input.import_select == 'datamall_import'",
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "If the default account key is rate limited, use your own.", class = "red_text"))),
+        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "If the default account keys are rate limited, use your own.", class = "red_text"))),
         checkboxInput("use_own_key", "Use your own account key", F),
+        conditionalPanel(
+          condition = "input.use_own_key == false",
+          selectInput("default_key", "Select one of the default keys", choices = c("Default key 1" = "1o+r1yqATGio3Rls/NnQGw==", "Default key 2" = "bLMF/fYdRzqPUXnRVSrw8w=="), width = "500px")
+        ),
         conditionalPanel(
           condition = "input.use_own_key == true",
           textInput("own_key", HTML(paste(icon("key"), "Your account key")),value = NA, width = "500px")
@@ -117,7 +122,7 @@ ui <- fluidPage(
       ),
       conditionalPanel(
         condition = "input.import_select == 'file_upload'",
-        tags$div(tags$h5(strong(tags$i(icon("circle-info")), "Supports both bus and train origin-destination CSVs.", class = "blue_text"))),
+        tags$div(tags$h5(strong(tags$i(icon("circle-info")), "Supports both bus and train origin-destination/specific stop CSVs.", class = "blue_text"))),
         tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "Please wait until you receive 'File upload from local storage successful!'.", class = "red_text"))),
         fileInput("data1_in", "Upload LTA Origin-Destination CSV", width = "500px",
                   accept = c(".csv", ".docx", ".doc"),
@@ -155,7 +160,7 @@ ui <- fluidPage(
       htmlOutput("upload_conf2"),
       htmlOutput("upload_conf3"),
       tags$div(tags$h4(strong(tags$i(icon("table")), "Select what type of data to view."))),
-      radioButtons("heatmap_type", "Select heatmap type", choices = c("By bus service" = "by_bus_svc", "By specific bus stops" = "by_specific_stops", "By MRT/LRT line" = "by_mrt_line", "By specific MRT/LRT stations" = "by_specific_stns"), inline = T),
+      selectInput("heatmap_type", "Select heatmap type", choices = c("If you are seeing this, something is wrong..." = "error"), width = "500px"),
       conditionalPanel(
         condition = "input.heatmap_type == 'by_bus_svc'",
         textInput("svc_in", HTML(paste(icon("bus"), "Which bus service would you like to see?")), width = "500px"),
@@ -163,11 +168,17 @@ ui <- fluidPage(
         radioButtons("dir1_in", HTML(paste(icon("right-left"), "Which direction? For loop", icon("rotate"), ", put as 1.")), width = "500px", choices = c(1,2), inline = T)
       ),
       conditionalPanel(
-        condition = "input.heatmap_type == 'by_specific_stops'",
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "The bus stops you listed in the origin box must be paired with a corresponding bus stop in order in the destination box.", class = "red_text"))),
-        tags$div(tags$h5(strong(tags$i(icon("circle-info")), "For example, if you put 10009,10011 as origin, 10017,10018 as destination, 10009 pairs with 10017, 10011 pairs with 10018.", class = "blue_text"))),
-        textInput("ori_stops", "Which specific origin stops? Put a comma between bus stops.", width = "500px"),
-        textInput("dst_stops", "Which specific destination stops? Put a comma between bus stops.", width = "500px")
+        condition = "input.heatmap_type == 'by_specific_stops' ||  input.heatmap_type == 'by_specific_stop'",
+        conditionalPanel(
+          condition = "input.heatmap_type == 'by_specific_stops'",
+          tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "The bus stops you listed in the origin box must be paired with a corresponding bus stop in order in the destination box.", class = "red_text"))),
+          tags$div(tags$h5(strong(tags$i(icon("circle-info")), "For example, if you put 10009,10011 as origin, 10017,10018 as destination, 10009 pairs with 10017, 10011 pairs with 10018.", class = "blue_text")))
+        ),
+        textInput("ori_stops", "Which specific (origin) stops? Put a comma between bus stops.", width = "500px"),
+        conditionalPanel(
+          condition = "input.heatmap_type == 'by_specific_stops'",
+          textInput("dst_stops", "Which specific destination stops? Put a comma between bus stops.", width = "500px")
+        )
       ),
       conditionalPanel(
         condition = "input.heatmap_type == 'by_mrt_line'",
@@ -178,11 +189,17 @@ ui <- fluidPage(
         radioButtons("dir2b_in", HTML(paste(icon("right-left"), "Which direction?")), width = "500px", choices = c(1,2), inline = T),
       ),
       conditionalPanel(
-        condition = "input.heatmap_type == 'by_specific_stns'",
-        tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "The stations you listed in the origin box must be paired with a corresponding station in order in the destination box.", class = "red_text"))),
-        tags$div(tags$h5(strong(tags$i(icon("circle-info")), "For example, if you put EW1,EW2 as origin, EW3,EW4 as destination, EW1 pairs with EW3, EW2 pairs with EW4.", class = "blue_text"))),
-        textInput("ori_stns", "Which specific origin stations? Put a comma between stations.", width = "500px"),
-        textInput("dst_stns", "Which specific destination stations? Put a comma between stations.", width = "500px")
+        condition = "input.heatmap_type == 'by_specific_stns' || input.heatmap_type == 'by_specific_stn'",
+        conditionalPanel(
+          condition = "input.heatmap_type == 'by_specific_stns'",
+          tags$div(tags$h5(strong(tags$i(icon("triangle-exclamation")), "The stations you listed in the origin box must be paired with a corresponding station in order in the destination box.", class = "red_text"))),
+          tags$div(tags$h5(strong(tags$i(icon("circle-info")), "For example, if you put EW1,EW2 as origin, EW3,EW4 as destination, EW1 pairs with EW3, EW2 pairs with EW4.", class = "blue_text")))
+        ),
+        textInput("ori_stns", "Which specific (origin) stations? Put a comma between stations.", width = "500px"),
+        conditionalPanel(
+          condition = "input.heatmap_type == 'by_specific_stns'",
+          textInput("dst_stns", "Which specific destination stations? Put a comma between stations.", width = "500px")
+        )
       ),
       tags$div(tags$h4(strong(tags$i(icon("filter")),"Please select your filters. Filters available include time and day type filters."))),
       radioButtons("day_filter", HTML(paste(icon("calendar"), "Select Day Type filter")), choices = c("Combined" = "combined","Weekday" = "weekday","Weekend/PH" = "weekend_ph"), selected = c("combined"), inline = T),
@@ -219,7 +236,7 @@ ui <- fluidPage(
         checkboxGroupInput("stop_names", "Display bus stop/station names in", choices = c("Rows" = "row_names", "Columns" = "column_names"), selected = c("row_names", "column_names"), inline = T),
       ),
       conditionalPanel(
-        condition = "input.heatmap_type == 'by_specific_stops' || input.heatmap_type == 'by_specific_stns'",
+        condition = "input.heatmap_type == 'by_specific_stops' || input.heatmap_type == 'by_specific_stns' || input.heatmap_type == 'by_specific_stop' || input.heatmap_type == 'by_specific_stn'",
         checkboxInput("stop_names2", "Display bus stop/station names in cells", F),
       ),
       actionButton("generate", "Generate Table", width = "140px", icon = icon("table")),
@@ -245,7 +262,13 @@ server <- function(input, output, session) {
   svc_half <- reactive({if (!identical(discord_data()$svc_half, NULL)) {discord_data()$svc_half}
     else {input$svc_half_in}})
   sp_ori <- reactive({if (!identical(discord_data()$sp_ori, NULL)) {discord_data()$sp_ori}
-    else {if ("by_specific_stops" %in% heatmap_type()) {input$ori_stops} else if ("by_specific_stns" %in% heatmap_type()) {input$ori_stns}}})
+    else {if ("by_specific_stops" %in% heatmap_type() || "by_specific_stop" %in% heatmap_type()) {
+      input$ori_stops
+    } else if ("by_specific_stns" %in% heatmap_type() || "by_specific_stn" %in% heatmap_type()) {
+      input$ori_stns
+    }
+    }
+  })
   sp_dst <- reactive({if (!identical(discord_data()$sp_dst, NULL)) {discord_data()$sp_dst}
     else {if ("by_specific_stops" %in% heatmap_type()) {input$dst_stops} else if ("by_specific_stns" %in% heatmap_type()) {input$dst_stns}}})
   heatmap_type <- reactive({if (!identical(discord_data()$type_bool, NULL)) {discord_data()$type_bool}
@@ -282,7 +305,7 @@ server <- function(input, output, session) {
   conf_msg3 <- reactiveVal("")
   result_msg <- reactiveVal("")
   line_cols <- list("EWL" = "#009E52", "NSL" = "#EF1C2A", "NEL" = "#6B3394", "CCL" = "#FCB02A", "DTL" = "#00509F", "TEL" = "#9D5B25", "BPLRT" = "#748477", "SKLRT" = "#748477", "PGLRT" = "#748477")
-  cols = colorRamp2(c(0, 1, 30, 300, 1500, 6000, 30000, 99000), c("gray60","white","white", "yellow", "orange", "red", "darkred","black"))
+  cols = colorRamp2(c(0, 1, 30, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), c("gray60","white","white","#A0FFA0","green", "#C0FF00","yellow","#FFD200","orange","#FF8000","red", "darkred","black"))
   
   interval2hours <- function(start, end) {
     start <- as.numeric(start)
@@ -397,20 +420,92 @@ server <- function(input, output, session) {
   base_to_decimal <- function(num_str, base) {
     return(as.numeric(strtoi(num_str, base = base)))
   }
-
+  
+  datamall_data_types <- function(data_type, data_type2) {
+    if (data_type == "origin_destination") {
+      if (data_type2 == "bus") {
+        data_type1("od_bus")
+      } else if (data_type2 == "train") {
+        data_type1("od_train")
+      }
+    } else if (data_type == "specific_stop") {
+      if (data_type2 == "bus") {
+        data_type1("spec_bus")
+      } else if (data_type2 == "train") {
+        data_type1("spec_train")
+      }
+    } else {
+      data_type1(NULL)
+    }
+  }
+  
+  heatmap_types <- function(type) {
+    if (type == "by_bus_svc" || type == "by_specific_stops") {
+      data_type <- "od_bus"
+    } else if (type == "by_mrt_line" || type == "by_specific_stns") {
+      data_type <- "od_train"
+    } else if (type == "by_specific_stop") {
+      data_type <- "spec_bus"
+    } else if (type == "by_specific_stn") {
+      data_type <- "spec_train"
+    }
+    return(data_type)
+  }
+  
+  observe({
+    if (input$import_select != "file_upload") {
+      if (input$datamall_data_type == "origin_destination") {
+        if (input$datamall_data_type2 == "bus") {
+          updateSelectInput(session, "heatmap_type", choices = c("By bus service" = "by_bus_svc", "By specific stops" = "by_specific_stops"))
+        } else if (input$datamall_data_type2 == "train") {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific MRT/LRT lines" = "by_mrt_line", "By specific MRT/LRT stations" = "by_specific_stns"))
+        }
+      } else if (input$datamall_data_type == "specific_stop") {
+        if (input$datamall_data_type2 == "bus") {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific bus stop" = "by_specific_stop"))
+        } else if (input$datamall_data_type2 == "train") {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific MRT/LRT station" = "by_specific_stn"))
+        }
+      }
+    } else {
+      if (!is.null(data_type1())) {
+        if (grepl("^origin_destination_bus_", input$data1_in$name)) {
+          updateSelectInput(session, "heatmap_type", choices = c("By bus service" = "by_bus_svc", "By specific stops" = "by_specific_stops"))
+        } else if (grepl("^origin_destination_train_", input$data1_in$name)) {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific MRT/LRT lines" = "by_mrt_line", "By specific MRT/LRT stations" = "by_specific_stns"))
+        } else if (grepl("^transport_node_bus_", input$data1_in$name)) {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific bus stop" = "by_specific_stop"))
+        } else if (grepl("^transport_node_train_", input$data1_in$name)) {
+          updateSelectInput(session, "heatmap_type", choices = c("By specific MRT/LRT station" = "by_specific_stn"))
+        }
+      } else {
+        updateSelectInput(session, "heatmap_type", choices = c("You have not uploaded any Datamall data. Go upload data before you come choosing your heatmap type!" = "error"))
+      }
+    }
+  })
+  
   observeEvent(input$data1_in, {
     conf_msg("")
     req(input$data1_in, "file_upload" %in% input$import_select)
     if (grepl("^origin_destination_bus_", input$data1_in$name)) {
-      data_type1("bus")
+      data_type1("od_bus")
     } else if (grepl("^origin_destination_train_", input$data1_in$name)) {
-      data_type1("train")
+      data_type1("od_train")
+    } else if (grepl("^transport_node_bus_", input$data1_in$name)) {
+      data_type1("spec_bus")
+    } else if (grepl("^transport_node_train_", input$data1_in$name)) {
+      data_type1("spec_train")
     } else {
       data_type1(NULL)
     }
-    pre_data1(read.csv(input$data1_in$datapath, colClasses = c("ORIGIN_PT_CODE" = "character", "DESTINATION_PT_CODE" = "character")))
+    pre_data1(read.csv(input$data1_in$datapath, colClasses = c("ORIGIN_PT_CODE" = "character", "DESTINATION_PT_CODE" = "character", "PT_CODE" = "character")))
     if (!is.null(pre_data1()) && !is.null(data_type1())) {
-      conf_msg(paste("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Datamall ", if (grepl("^origin_destination_bus_", input$data1_in$name)) "O-D Bus" else "O-D Train"," CSV upload from local storage successful!</span>"))
+      conf_msg(paste("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Datamall ",
+                     if (grepl("^origin_destination_bus_", input$data1_in$name)) "O-D Bus"
+                     else if (grepl("^origin_destination_train_", input$data1_in$name)) "O-D Train"
+                     else if (grepl("^transport_node_bus_", input$data1_in$name)) "specific Bus"
+                     else if (grepl("^transport_node_train_", input$data1_in$name)) "specific Train",
+                     " CSV upload from local storage successful!</span>"))
     } else {
       conf_msg("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Datamall CSV upload failed. Please check for data corruption or correct file format.</span>")
     }
@@ -456,12 +551,12 @@ server <- function(input, output, session) {
       conf_msg3("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> BusRouter Stops JSON upload failed. Please check for data corruption or correct file format.</span>")
     }
   })
-
+  
   datamall_params <- eventReactive(input$import_datamall, {
     if (input$use_own_key) {
       account_key <- input$own_key
     } else {
-      account_key <- "1o+r1yqATGio3Rls/NnQGw=="
+      account_key <- input$default_key
     }
     list(
       account_key = account_key
@@ -469,11 +564,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(datamall_params(), {
-    if ("bus" %in% input$datamall_data_type) {
-      data_type1("bus")
-    } else {
-      data_type1("train")
-    }
+    datamall_data_types(input$datamall_data_type, input$datamall_data_type2)
     session$sendCustomMessage("fetch_datamall", datamall_params())
   })
   
@@ -486,12 +577,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$import_repository, {
     conf_msg3("")
-    # Add a selection for either bus or MRT data later.
-    if ("bus" %in% input$datamall_data_type) {
-      data_type1("bus")
-    } else {
-      data_type1("train")
-    }
+    datamall_data_types(input$datamall_data_type, input$datamall_data_type2)
     session$sendCustomMessage("fetch_drive_datamall", "")
   })
   
@@ -529,14 +615,14 @@ server <- function(input, output, session) {
     }
     if (is.null(data_type1()) || is.null(data_type2()) || is.null(data_type3())) {
       tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You have not uploaded some or all required data. What do you wanna see?!</span>"))
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You have not uploaded ", if (is.null(data_type1())) "Datamall origin-destination or transport-node CSVs" else if (is.null(data_type2())) ", BusRouter/Repository services/stations JSON" else if (is.null(data_type3())) "BusRouter/Repository stops/station_names JSON", ". What do you wanna see?!</span>"))
         stop("Required data not defined.")
       }, error = function(e) {
         print(e$message)
         stop()
       })
     }
-    if (data_type1() != data_type2() || data_type2() != data_type3()) {
+    if (grepl("bus", data_type1()) != grepl("bus", data_type2()) || grepl("bus", data_type2()) != grepl("bus", data_type3())) {
       tryCatch({
         result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Your uploaded CSV is of type '", data_type1(), "', uploaded JSON are of types '", data_type2(), "', '", data_type3(), "', make up your mind!</span>"))
         stop("Data type mismatch.")
@@ -545,15 +631,10 @@ server <- function(input, output, session) {
         stop()
       })
     }
-    if (data_type1() == "bus") {data_type <- "bus"} else {data_type <- "train"}
-    if (heatmap_type() == "by_bus_svc" || heatmap_type() == "by_specific_stops") {
-      heatmap_data_type = "bus"
-    } else {
-      heatmap_data_type = "train"
-    }
-    if (data_type != heatmap_data_type) {
+    heatmap_data_type <- heatmap_types(heatmap_type())
+    if (data_type1() != heatmap_data_type) {
       tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You uploaded some ", data_type, " data, but you selected a heatmap type that needs ", heatmap_data_type, " data. Make up your mind!</span>"))
+        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You uploaded some ", data_type1(), " data, but you selected a heatmap type that needs ", heatmap_data_type, " data. Make up your mind!</span>"))
         stop("Selection of heatmap type not equal to type of uploaded data.")
       }, error = function(e) {
         print(e$message)
@@ -623,7 +704,7 @@ server <- function(input, output, session) {
       stop_cur <- data2[[route1]]$routes[[dir1]]
       if (is.null(stop_cur)) {
         tryCatch({
-          if (heatmap_data_type == "bus") {
+          if (heatmap_data_type == "od_bus" || heatmap_data_type == "spec_bus") {
             result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus service. Is your bus service withdrawn?</span>"))
             stop("Invalid bus service.")
           } else {
@@ -681,9 +762,9 @@ server <- function(input, output, session) {
             if (origin == terminus) {dir_graph <- "Loop Svc"} else {dir_graph <- "Direction 1"}
           }}
       } else {
-          stop_cur1a <- stop_cur
-          dir_grah <- paste("dir",dir1)
-          dir_graph2 <- paste("dir",dir2)
+        stop_cur1a <- stop_cur
+        dir_grah <- paste("dir",dir1)
+        dir_graph2 <- paste("dir",dir2)
       }
       V <- length(stop_cur1a)
       stop_names <- data.frame(as.character(c(stop_cur1a)),c(1:V))
@@ -717,13 +798,13 @@ server <- function(input, output, session) {
       }
       dataod1 <- data1 %>% {if ("by_bus_svc" %in% heatmap_type() || route1 == route2) {
         filter(., ORIGIN_PT_CODE %in% stop_cur1a | is.na(ORIGIN_PT_CODE),
-          DESTINATION_PT_CODE %in% stop_cur1a | is.na(DESTINATION_PT_CODE),
-          !!filter_day_type, !!filter_time_period) 
-        } else {
+               DESTINATION_PT_CODE %in% stop_cur1a | is.na(DESTINATION_PT_CODE),
+               !!filter_day_type, !!filter_time_period) 
+      } else {
         filter(., ORIGIN_PT_CODE %in% stop_cur1a | is.na(ORIGIN_PT_CODE),
-          DESTINATION_PT_CODE %in% stop_cur2 | is.na(DESTINATION_PT_CODE),
-          !!filter_day_type, !!filter_time_period) 
-        }} %>%  
+               DESTINATION_PT_CODE %in% stop_cur2 | is.na(DESTINATION_PT_CODE),
+               !!filter_day_type, !!filter_time_period) 
+      }} %>%  
         group_by(ORIGIN_PT_CODE, DESTINATION_PT_CODE) %>%
         summarise(total = sum(TOTAL_TRIPS, na.rm = TRUE), .groups = "drop")
       missing_org <- setdiff(stop_cur1a, unique(dataod1$ORIGIN_PT_CODE)) # Check for missing origin stops
@@ -820,11 +901,11 @@ server <- function(input, output, session) {
       line_col1a <- if ("by_mrt_line" %in% heatmap_type()) {line_cols[[route1]]} else {"#000000"}
       line_col1b <- if ("by_mrt_line" %in% heatmap_type()) {line_cols[[route2]]} else {"#000000"}
       # Heatmap size
-      img_dims <- list(width = 39 * ncol(dataod1c) + 320, height = 22 * nrow(dataod1c) + 200)
+      img_dims <- list(width = 39 * ncol(dataod1c) + 320, height = 22 * nrow(dataod1c) + 240)
       # Heatmap config
       img <- Heatmap(dataod1c,
-       name = lgd_name1,
-       show_column_dend = FALSE,
+        name = lgd_name1,
+        show_column_dend = FALSE,
        show_row_dend = FALSE,
        row_dend_reorder = FALSE,
        column_dend_reorder = FALSE,
@@ -849,12 +930,16 @@ server <- function(input, output, session) {
        column_title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 12, 25), col = line_col1a),
        row_names_max_width = unit(max_length, "cm"),
        column_names_max_height = unit(max_length, "cm"),
-       heatmap_legend_param = list(labels_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18)), legend_height = unit(pmin(nrow(dataod1c) / 4 + 1, 8), "cm"), at = c(0, 300, 1500, 6000, 30000, 99000), legend_width = unit(2, "cm"), color_bar = "continuous", title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18), fontface = 'bold'), break_dist = 1),
+       heatmap_legend_param = list(labels_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18)), legend_height = unit(pmin(nrow(dataod1c) / 4 + 1, 8), "cm"), at = c(0, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), legend_width = unit(2, "cm"), color_bar = "continuous", title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18), fontface = 'bold'), break_dist = 1),
        cell_fun = function(j, i, x, y, width, height, fill) {
-         if(dataod1c[i, j] > 10000){
+         if (dataod1c[i, j] > 100000) {
+           grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 12, col = "white"))
+         } else if (dataod1c[i, j] > 60000) {
            grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 13, col = "white"))
+         } else if(dataod1c[i, j] > 10000){
+           grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 13, col = "black"))
          } else if (dataod1c[i, j] > 5000) {
-           grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 14, col = "white"))
+           grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 14, col = "black"))
          } else if(dataod1c[i, j] > 29){
            grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 14))
          }
@@ -862,17 +947,19 @@ server <- function(input, output, session) {
        rect_gp = gpar(col = "black", lwd = 0.2))
     } else {
       ori_stops <- str_split(sp_ori(), ",")
-      dst_stops <- str_split(sp_dst(), ",")
       l_ori <- length(ori_stops[[1]])
-      l_dst <- length(dst_stops[[1]])
-      if (l_ori != l_dst) {
-        tryCatch({
-          result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> The lengths of your origin bus stops/stations and destination bus stops/stations do not match.</span>"))
-          stop("Length of origin stops/stations not equal to length of destination stops/stations.")
-        }, error = function(e) {
-          print(e$message)
-          stop()
-        })
+      if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+        dst_stops <- str_split(sp_dst(), ",")
+        l_dst <- length(dst_stops[[1]])
+        if (l_ori != l_dst) {
+          tryCatch({
+            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> The lengths of your origin bus stops/stations and destination bus stops/stations do not match.</span>"))
+            stop("Length of origin stops/stations not equal to length of destination stops/stations.")
+          }, error = function(e) {
+            print(e$message)
+            stop()
+          })
+        }
       }
       dataod2 <- data.frame(c(1:l_ori), c(1:l_ori), c(1:l_ori))
       dataod2a <- data.frame(c(1:l_ori), c(1:l_ori))
@@ -881,62 +968,105 @@ server <- function(input, output, session) {
       for (t in 1:l_ori) {
         ori_stop <- trimws(ori_stops[[1]][[t]])
         ori_stop2 <- compound_route(ori_stop, data1)
-        dst_stop <- trimws(dst_stops[[1]][[t]])
-        dst_stop2 <- compound_route(dst_stop, data1)
         dataod2[t, 1] <- ori_stop2
-        dataod2[t, 2] <- dst_stop2
-        valid_stops <- nrow(filter(data1,
-          ORIGIN_PT_CODE %in% dataod2[t, 1] | is.na(ORIGIN_PT_CODE),
-          DESTINATION_PT_CODE %in% dataod2[t, 2] | is.na(DESTINATION_PT_CODE),
-          !!filter_day_type, !!filter_time_period))
+        if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+          dst_stop <- trimws(dst_stops[[1]][[t]])
+          dst_stop2 <- compound_route(dst_stop, data1)
+          dataod2[t, 2] <- dst_stop2
+          valid_stops <- nrow(filter(data1,
+            ORIGIN_PT_CODE %in% dataod2[t, 1] | is.na(ORIGIN_PT_CODE),
+            DESTINATION_PT_CODE %in% dataod2[t, 2] | is.na(DESTINATION_PT_CODE),
+            !!filter_day_type, !!filter_time_period))
+        } else {
+          valid_stops <- nrow(filter(data1,
+            PT_CODE %in% dataod2[t, 1] | is.na(PT_CODE),
+            !!filter_day_type, !!filter_time_period))
+        }
         if (valid_stops == 0) {
           tryCatch({
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus stop code(s) detected! Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B.</span>"))
-            stop("Invalid stop codes or no demand.")
+            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus stop / MRT/LRT station code(s) detected!", if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") " Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B.</span>"))
+            stop("Invalid stop codes", if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") " or no demand." else ".")
           }, error = function(e) {
             print(e$message)
             stop()
           })
         }
-        dataod2[t, 3] <- data1 %>%
-          filter(., ORIGIN_PT_CODE == dataod2[t, 1],
-            DESTINATION_PT_CODE == dataod2[t, 2],
-            !!filter_day_type,
-            !!filter_time_period) %>%
-          summarise(Total = sum(TOTAL_TRIPS)) %>%
-          pull(Total) %>%
-          as.numeric()
+        if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+          dataod2[t, 3] <- data1 %>%
+            filter(., ORIGIN_PT_CODE == dataod2[t, 1],
+              DESTINATION_PT_CODE == dataod2[t, 2],
+              !!filter_day_type,
+              !!filter_time_period) %>%
+            summarise(Total = sum(TOTAL_TRIPS)) %>%
+            pull(Total) %>%
+            as.numeric()
+        } else {
+          dataod2[t, 2] <- data1 %>%
+            filter(., PT_CODE == dataod2[t, 1],
+              !!filter_day_type,
+              !!filter_time_period) %>%
+            summarise(tap_ins = sum(TOTAL_TAP_IN_VOLUME)) %>%
+            pull(tap_ins) %>%
+            as.numeric()
+          dataod2[t, 3] <- data1 %>%
+            filter(., PT_CODE == dataod2[t, 1],
+              !!filter_day_type,
+              !!filter_time_period) %>%
+            summarise(tap_outs = sum(TOTAL_TAP_OUT_VOLUME)) %>%
+            pull(tap_outs) %>%
+            as.numeric()
+        }
         if ("row_names" %in% input$stop_names || display_stop_names()$cells == TRUE) {
           if ("by_specific_stops" %in% heatmap_type()) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[3]]
             dataod2a[t, 2] <- data3[[as.character(dst_stop)]][[3]]
-          } else {
+          } else if ("by_specific_stns" %in% heatmap_type()) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[1]]
             dataod2a[t, 2] <- data3[[as.character(dst_stop)]][[1]]
+          } else if ("by_specific_stop" %in% heatmap_type()) {
+            dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[3]]
+          } else if ("by_specific_stn" %in% heatmap_type()) {
+            dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[1]]
           }
         }
         dataod2[t, 1] <- ori_stop
-        dataod2[t, 2] <- dst_stop
+        if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+          dataod2[t, 2] <- dst_stop
+        }
       }
-      # To base10 from base36, allowing station codes to be stored as numbers
-      for (j in 1:2) {
+      # To base10 from base36, allowing station codes to be stored as numbers.
+      if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+        # The first 2 columns to store origin stops and destination stops.
+        for (j in 1:2) {
           dataod2[,j] <- base_to_decimal(dataod2[,j],36)
+        }
+      } else {
+        # The first column to store specific stops.
+        dataod2[,1] <- base_to_decimal(dataod2[,1],36)
       }
       dataod2 <- as.matrix(dataod2)
       dataod2a <- as.matrix(dataod2a)
       img_dims <- list(width = 520, height = 24 * nrow(dataod2) + 90)
+      column_title <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+          "O-D Matrix for specific stops/stations"} else {
+          "Tap ins and outs for specific stops/stations"
+        }
+      column_labels <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+          c("Origin", "Destination", "Demand")} else {
+          c("Stop", "Tap ins", "Tap outs")
+        }
       img <- Heatmap(dataod2,
         name = paste(day_type, "Demand,", time_period),
         show_column_dend = FALSE,
         show_row_dend = FALSE,
         row_dend_reorder = FALSE,
         column_dend_reorder = FALSE,
-        column_title = "O-D Matrix for specific stops/stations",
+        column_title = column_title,
         column_title_side = "top",
         column_names_side = "top",
         column_names_rot = 0,
         column_names_centered = TRUE,
-        column_labels = c("Origin", "Destination", "Demand"),
+        column_labels = column_labels,
         col = cols,
         na_col = "gray60",
         column_gap = unit(2, "mm"),
@@ -944,9 +1074,39 @@ server <- function(input, output, session) {
         cluster_columns = FALSE,
         column_names_gp = gpar(fontsize = 15),
         column_title_gp = gpar(fontsize = 25),
-        heatmap_legend_param = list(labels_gp = gpar(fontsize = 12), legend_width = unit(10, "cm"), legend_direction = "horizontal", at = c(0, 300, 1500, 6000, 30000, 99000), legend_width = unit(2, "cm"), color_bar = "continuous", break_dist = 1, title_position = "topcenter", heatmap_legend_side = "top", title_gp = gpar(fontsize = 12, fontface = "bold")),
+        heatmap_legend_param = list(labels_gp = gpar(fontsize = 12), legend_width = unit(10, "cm"), legend_direction = "horizontal", at = c(0, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), legend_width = unit(2, "cm"), color_bar = "continuous", break_dist = 1, title_position = "topcenter", heatmap_legend_side = "top", title_gp = gpar(fontsize = 12, fontface = "bold")),
         cell_fun = function(j, i, x, y, width, height, fill) {
-          if(j %in% c(1, 2)) {
+          if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+            # Rows 1 and 2 are not coloured.
+            if(j %in% c(1, 2)) {
+              # Draw a white background covering the cell.
+              grid.rect(
+                x = x, y = y, width = width, height = height,
+                gp = gpar(fill = "white", col = "black", lwd = 0.2)
+              )
+              # From base10 to base36, back to station/stop codes.
+              code <- decimal_to_base(dataod2[i,j],36)
+              if (isTRUE(input$stop_names2) || isTRUE(display_stop_names()$cells)) {
+                grid.text(sprintf("%s\n%s", code, dataod2a[i, j]), x, y, gp = gpar(fontsize = 11, col = get_line_colour(code)))
+              } else {
+                grid.text(sprintf("%s", code), x, y, gp = gpar(fontsize = 15, col = get_line_colour(code)))
+              }
+            }
+            if (j==3) {
+              grid.rect(
+                x = x, y = y, width = width, height = height,
+                gp = gpar(fill = fill, col = NA)
+              )
+            if(dataod2[i, j] > 60000){
+              grid.text(sprintf("%.0f", dataod2[i, j]), x, y, gp = gpar(fontsize = 15, col = "white"))
+            }
+            else if(dataod2[i, j] >= 0){
+              grid.text(sprintf("%.0f", dataod2[i, j]), x, y, gp = gpar(fontsize = 15))
+            }
+          }
+        } else {
+          # Row 1 is not coloured.
+          if(j==1) {
             # Draw a white background covering the cell.
             grid.rect(
               x = x, y = y, width = width, height = height,
@@ -960,22 +1120,23 @@ server <- function(input, output, session) {
               grid.text(sprintf("%s", code), x, y, gp = gpar(fontsize = 15, col = get_line_colour(code)))
             }
           }
-          if (j==3) {
+          if (j %in% c(2,3)) {
             grid.rect(
               x = x, y = y, width = width, height = height,
               gp = gpar(fill = fill, col = NA)
             )
-            if(dataod2[i, j] > 5000){
+            if(dataod2[i, j] > 60000){
               grid.text(sprintf("%.0f", dataod2[i, j]), x, y, gp = gpar(fontsize = 15, col = "white"))
             }
             else if(dataod2[i, j] >= 0){
               grid.text(sprintf("%.0f", dataod2[i, j]), x, y, gp = gpar(fontsize = 15))
             }
           }
-        },
-        rect_gp = gpar(col = "black", lwd = 0.2))
-      }
-      list(img = img, img_dims = img_dims)
+        }
+      },
+      rect_gp = gpar(col = "black", lwd = 0.2))
+    }
+    list(img = img, img_dims = img_dims)
   })
   draw_heatmap <- function(heatmap, img_dims) {
     # Retrieve dimensions
