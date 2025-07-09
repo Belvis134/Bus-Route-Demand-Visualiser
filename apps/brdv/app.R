@@ -1046,7 +1046,7 @@ server <- function(input, output, session) {
       }
       dataod2 <- as.matrix(dataod2)
       dataod2a <- as.matrix(dataod2a)
-      img_dims <- list(width = 520, height = 24 * nrow(dataod2) + 90)
+      img_dims <- list(width = 520, height = 24 * nrow(dataod2) + 100)
       column_title <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
           "O-D Matrix for specific stops/stations"} else {
           "Tap ins and outs for specific stops/stations"

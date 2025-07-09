@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     var datamall_date = datamall_date_raw.replace("-", "");
     const data_type = document.getElementById("datamall_data_type").value;
     const data_type2 = document.getElementById("datamall_data_type2").value;
-        if (!datamall_date_raw) {
+    if (!datamall_date_raw) {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     const encoded_account_key = encodeURIComponent(params.account_key);
@@ -25,8 +25,21 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(function(csv_text) {
         // Pass the CSV text to Shiny.
         Shiny.setInputValue('csv_data_in', { data1: csv_text });
+        if (data_type == 'origin_destination') {
+          if (data_type2 == 'bus') {
+            var msg = "O-D Bus"
+          } else {
+            var msg = "O-D Train"
+          }
+        } else if (data_type == 'specific_stop') {
+          if (data_type2 == 'bus') {
+            var msg = "Specific Bus Stop"
+          } else {
+            var msg = "Specific MRT/LRT Station"
+          }
+        }
         document.getElementById('upload_conf').innerHTML =
-          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> ${data_type === "bus" ? "O-D Bus" : "O-D Train"} data import from Datamall successful!</span>`;
+          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> ${msg} data import from Datamall successful!</span>`;
       })
       .catch(err => {
         console.error(err);
