@@ -333,8 +333,12 @@ server <- function(input, output, session) {
   }
   
   compound_route <- function(data, source) {
-    compound_org <- unique(source$ORIGIN_PT_CODE[grepl("/", source$ORIGIN_PT_CODE)])
-    compound_dst <- unique(source$DESTINATION_PT_CODE[grepl("/", source$DESTINATION_PT_CODE)])
+    if ("origin_destination" %in% input$datamall_data_type) {
+      compound_org <- unique(source$ORIGIN_PT_CODE[grepl("/", source$ORIGIN_PT_CODE)])
+      compound_dst <- unique(source$DESTINATION_PT_CODE[grepl("/", source$DESTINATION_PT_CODE)])
+    } else {
+      compound_org <- unique(source$PT_CODE[grepl("/", source$PT_CODE)])
+    }
     compound_entries <- unique(c(compound_org, compound_dst))
     compound_mapping <- list()
     for (entry in compound_entries) {
@@ -968,6 +972,7 @@ server <- function(input, output, session) {
       for (t in 1:l_ori) {
         ori_stop <- trimws(ori_stops[[1]][[t]])
         ori_stop2 <- compound_route(ori_stop, data1)
+        print(ori_stop2)
         dataod2[t, 1] <- ori_stop2
         if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
           dst_stop <- trimws(dst_stops[[1]][[t]])
