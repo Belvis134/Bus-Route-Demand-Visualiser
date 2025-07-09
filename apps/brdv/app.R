@@ -333,13 +333,14 @@ server <- function(input, output, session) {
   }
   
   compound_route <- function(data, source) {
-    if ("origin_destination" %in% input$datamall_data_type) {
+    if (data_type1() == "od_bus" || data_type1() == "od_train") {
       compound_org <- unique(source$ORIGIN_PT_CODE[grepl("/", source$ORIGIN_PT_CODE)])
       compound_dst <- unique(source$DESTINATION_PT_CODE[grepl("/", source$DESTINATION_PT_CODE)])
+      compound_entries <- unique(c(compound_org, compound_dst))
     } else {
       compound_org <- unique(source$PT_CODE[grepl("/", source$PT_CODE)])
     }
-    compound_entries <- unique(c(compound_org, compound_dst))
+    compound_entries <- compound_org
     compound_mapping <- list()
     for (entry in compound_entries) {
       parts <- strsplit(entry, "/", fixed = TRUE)[[1]]
