@@ -19,7 +19,13 @@ document.addEventListener('DOMContentLoaded', function() {
       '&data_type2=' + data_type2;
     fetch(csv_proxy_url)
       .then(response => {
-        if (!response.ok) throw new Error("Error fetching CSV from endpoint");
+        if (!response.ok) {
+          return response.json().then(text => {
+            throw new Error(
+              `${text.error}`
+            );
+          });
+        }
         return response.text();
       })
       .then(function(csv_text) {
@@ -60,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
       json_urls.map(function(url) {
         return fetch(url).then(function(response) {
           if (!response.ok) {
-            throw new Error('Your internet is dead. Good job.');
+            throw new Error(`BusRouter gave ${response.status} because of ${response.statusText}`);
           }
           return response.json();
         });
