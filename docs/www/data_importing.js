@@ -114,9 +114,22 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.text();
       })
       .then(function(csv_data) {
+        if (data_type == 'origin_destination') {
+          if (data_type2 == 'bus') {
+            var msg = "O-D Bus"
+          } else {
+            var msg = "O-D Train"
+          }
+        } else if (data_type == 'specific_stop') {
+          if (data_type2 == 'bus') {
+            var msg = "Specific Bus Stop"
+          } else {
+            var msg = "Specific MRT/LRT Station"
+          }
+        }
         Shiny.setInputValue("csv_data_in", { data1: csv_data });
         document.getElementById('upload_conf').innerHTML =
-          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall ${(data_type === "bus") ? "OD-Bus" : "OD-Train"} data import from repository successful!</span>`;
+          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Datamall ${msg} data import from repository successful!</span>`;
       })
       .catch(error => {
         document.getElementById('upload_conf').innerHTML =
