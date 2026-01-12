@@ -73,7 +73,7 @@ ui <- fluidPage(
     tags$script(src = "../www/discord_data_transfer.js")
   ),
   
-  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.3.2")),
+  titlePanel(tags$p(style = "color: white; text-align: center", "Bus Route Demand Visualiser 1.3.3")),
   sidebarLayout(
     sidebarPanel(
       width = 6,
@@ -231,6 +231,11 @@ ui <- fluidPage(
           sliderInput("time_until4", "TP4: Until what hour?", 0, 23, 0, step = 1, animate = F, width = "200px")
         ),
       ),
+      tags$div(tags$h4(strong(tags$i(icon("calculator")),"If required, select your statistical computations. (WIP)"))),
+      checkboxInput("monthly_mean","Calculate monthly mean depending on days in a month"),
+      checkboxInput("percentage_departures","Calculate the proportion of departures from a specific station to another station"),
+      checkboxInput("percentage_arrivals","Calculate the proportion of arrivals to a specific station from another station"),
+      checkboxInput("data_mean","Calculate the mean of the data included in your heatmap"),
       conditionalPanel(
         condition = "input.heatmap_type == 'by_bus_svc' || input.heatmap_type == 'by_mrt_line'",
         checkboxGroupInput("stop_names", "Display bus stop/station names in", choices = c("Rows" = "row_names", "Columns" = "column_names"), selected = c("row_names", "column_names"), inline = T),
@@ -305,7 +310,9 @@ server <- function(input, output, session) {
   conf_msg3 <- reactiveVal("")
   result_msg <- reactiveVal("")
   line_cols <- list("EWL" = "#009E52", "NSL" = "#EF1C2A", "NEL" = "#6B3394", "CCL" = "#FCB02A", "DTL" = "#00509F", "TEL" = "#9D5B25", "BPLRT" = "#748477", "SKLRT" = "#748477", "PGLRT" = "#748477")
-  cols = colorRamp2(c(0, 1, 30, 50, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), c("gray60","white","white","#A0FFA0","green", "#C0FF00","yellow","#FFD200","orange","#FF8000","red", "darkred","black"))
+  cols = colorRamp2(c(0,1,30,50,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6), c("gray60","white","white","#A0FFA0","green", "#C0FF00","yellow","#FFD200","orange","#FF8000","red", "darkred","black"))
+  cols2 = colorRamp2(c(0,2E5,4E5,6E5,8E5,1E6,12E5,14E5,16E5,18E5,2E6,21E5),
+    c("white","#80C0FF","#00C0FF","#80F080","green","#C0FF00","yellow","#FFC000","#FF8000","red","darkred","black"))
   
   interval2hours <- function(start, end) {
     start <- as.numeric(start)
@@ -935,7 +942,7 @@ server <- function(input, output, session) {
        column_title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 12, 25), col = line_col1a),
        row_names_max_width = unit(max_length, "cm"),
        column_names_max_height = unit(max_length, "cm"),
-       heatmap_legend_param = list(labels_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18)), legend_height = unit(pmin(nrow(dataod1c) / 4 + 1, 8), "cm"), at = c(0, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), legend_width = unit(2, "cm"), color_bar = "continuous", title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18), fontface = 'bold'), break_dist = 1),
+       heatmap_legend_param = list(labels_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18)), legend_height = unit(pmin(nrow(dataod1c) / 4 + 1, 8), "cm"), at = c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6), legend_width = unit(2, "cm"), color_bar = "continuous", title_gp = gpar(fontsize = pmin(ncol(dataod1c) / 3 + 9, 18), fontface = 'bold'), break_dist = 1),
        cell_fun = function(j, i, x, y, width, height, fill) {
          if (dataod1c[i, j] > 100000) {
            grid.text(sprintf("%.0f", dataod1c[i, j]), x, y, gp = gpar(fontsize = 12, col = "white"))
@@ -973,7 +980,6 @@ server <- function(input, output, session) {
       for (t in 1:l_ori) {
         ori_stop <- trimws(ori_stops[[1]][[t]])
         ori_stop2 <- compound_route(ori_stop, data1)
-        print(ori_stop2)
         dataod2[t, 1] <- ori_stop2
         if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
           dst_stop <- trimws(dst_stops[[1]][[t]])
@@ -1060,7 +1066,10 @@ server <- function(input, output, session) {
       column_labels <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
           c("Origin", "Destination", "Demand")} else {
           c("Stop", "Tap ins", "Tap outs")
-        }
+          }
+      heatmap_legend_col <- if (day_filter() == "combined" && !time_filter()) {cols2} else {cols}
+      interval2 <- if (day_filter() == "combined" && !time_filter()) {c(0,1E5,2E5,3E5,4E5,5E5,6E5,7E5,8E5,9E5,1E6,11E5,12E5,13E5,14E5,15E5,16E5,17E5,18E5,19E5,2E6)
+        } else {c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6)}
       img <- Heatmap(dataod2,
         name = paste(day_type, "Demand,", time_period),
         show_column_dend = FALSE,
@@ -1073,14 +1082,14 @@ server <- function(input, output, session) {
         column_names_rot = 0,
         column_names_centered = TRUE,
         column_labels = column_labels,
-        col = cols,
+        col = heatmap_legend_col,
         na_col = "gray60",
         column_gap = unit(2, "mm"),
         cluster_rows = FALSE,
         cluster_columns = FALSE,
         column_names_gp = gpar(fontsize = 15),
         column_title_gp = gpar(fontsize = 25),
-        heatmap_legend_param = list(labels_gp = gpar(fontsize = 12), legend_width = unit(10, "cm"), legend_direction = "horizontal", at = c(0, 100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000), legend_width = unit(2, "cm"), color_bar = "continuous", break_dist = 1, title_position = "topcenter", heatmap_legend_side = "top", title_gp = gpar(fontsize = 12, fontface = "bold")),
+        heatmap_legend_param = list(labels_gp = gpar(fontsize = 12), legend_width = unit(10, "cm"), legend_direction = "horizontal", at = c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6), legend_width = unit(2, "cm"), color_bar = "continuous", break_dist = 1, title_position = "topcenter", heatmap_legend_side = "top", title_gp = gpar(fontsize = 12, fontface = "bold")),
         cell_fun = function(j, i, x, y, width, height, fill) {
           if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
             # Rows 1 and 2 are not coloured.

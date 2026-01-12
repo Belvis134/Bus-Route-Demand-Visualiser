@@ -15,7 +15,7 @@ function compute_hash(data) {
 }
 
 function pollForData() {
-  const storage_url = "https://stc-brdv.fly.dev/discord-data-in";
+  const storage_url = "https://127.0.0.1/discord-data-in";
 
   fetch(storage_url)
     .then(response => {
@@ -48,7 +48,7 @@ Shiny.addCustomMessageHandler("send_image", function(image_data) {
   // Get the user ID from the inbound Discord data defined above.
   let user_id = last_data.user_id;
   // Post to the /heatmap endpoint.
-  fetch("https://stc-brdv.fly.dev/data/heatmap", {
+  fetch("https://127.0.0.1/data/heatmap", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
