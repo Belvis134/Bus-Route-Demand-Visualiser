@@ -1,0 +1,62 @@
+# Configuration of Hugo
+# Guide: https://docs.hugoblox.com/tutorial/
+# Hugo Documentation: https://gohugo.io/getting-started/configuration/#all-configuration-settings
+# This file is formatted using YAML syntax - learn more at https://learnxinyminutes.com/docs/yaml/
+
+# Website name
+title: Bus Route Demand Visualiser
+# Website URL
+baseURL: 'http://brdv.netlify.app'
+
+############################
+## LANGUAGE
+############################
+
+defaultContentLanguage: en
+hasCJKLanguage: false
+defaultContentLanguageInSubdir: false
+removePathAccents: true
+
+############################
+## ADVANCED
+############################
+
+build:
+  writeStats: true
+enableGitInfo: false
+enableEmoji: false
+enableRobotsTXT: true
+ignoreFiles: [\.ipynb$, .ipynb_checkpoints$, _cache$, "\\.Rmd$", "\\.Rmarkdown$"]
+disableAliases: true
+outputs:
+  home: [HTML]
+  section: [HTML]
+  page: [HTML]
+imaging:
+  resampleFilter: lanczos
+  quality: 80
+  anchor: smart
+timeout: 300000
+taxonomies: {}
+security:
+  _merge: deep
+sitemap:
+  changeFreq: monthly
+  priority: 0.5
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+module:
+  mounts:
+    - source: layouts
+      target: layouts
+disableKinds:
+  - taxonomy
+  - term
+  - sitemap
+  - robotsTXT
+  - resources
+  - dist
+assetDir: "static"
+uglyURLs: true

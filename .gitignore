@@ -1,0 +1,14 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+.DS_Store
+Thumbs.db
+.hugo_build.lock
+/discord
+/node_modules
+/data
+/shortcuts
+/test
+/STC Channel Backup
+drive_auth.json
