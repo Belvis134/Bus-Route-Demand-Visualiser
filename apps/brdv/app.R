@@ -263,12 +263,8 @@ server <- function(input, output, session) {
   discord_data <- reactive({input$discord_data})
   route1 <- reactive({if (!identical(discord_data()$svc, NULL)) {discord_data()$svc}
     else {if ("by_bus_svc" %in% heatmap_type()) {input$svc_in} else if ("by_mrt_line" %in% heatmap_type()) {input$mrt_line_in_1}}})
-  route2 <- reactive({input$mrt_line_in_2})
   pre_dir1 <- reactive({if (!identical(discord_data()$dir, NULL)) {discord_data()$dir}
     else {if ("by_bus_svc" %in% heatmap_type()) {input$dir1_in} else if ("by_mrt_line" %in% heatmap_type()) {input$dir2a_in}}})
-  pre_dir2 <- reactive({input$dir2b_in})
-  svc_half <- reactive({if (!identical(discord_data()$svc_half, NULL)) {discord_data()$svc_half}
-    else {input$svc_half_in}})
   sp_ori <- reactive({if (!identical(discord_data()$sp_ori, NULL)) {discord_data()$sp_ori}
     else {if ("by_specific_stops" %in% heatmap_type() || "by_specific_stop" %in% heatmap_type()) {
       input$ori_stops
@@ -305,9 +301,11 @@ server <- function(input, output, session) {
   pre_data1 <- reactiveVal(NULL)
   pre_data2 <- reactiveVal(NULL)
   pre_data3 <- reactiveVal(NULL)
+  pre_data4 <- reactiveVal(NULL)
   data_type1 <- reactiveVal(NULL)
   data_type2 <- reactiveVal(NULL)
   data_type3 <- reactiveVal(NULL)
+  heatmap_image <- reactiveVal(NULL)
   conf_msg <- reactiveVal("")
   conf_msg2 <- reactiveVal("")
   conf_msg3 <- reactiveVal("")
@@ -316,6 +314,35 @@ server <- function(input, output, session) {
   cols = colorRamp2(c(0,1,30,50,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6), c("gray60","white","white","#A0FFA0","green", "#C0FF00","yellow","#FFD200","orange","#FF8000","red", "darkred","black"))
   cols2 = colorRamp2(c(0,2E5,4E5,6E5,8E5,1E6,12E5,14E5,16E5,18E5,2E6,21E5),
     c("white","#80C0FF","#00C0FF","#80F080","green","#C0FF00","yellow","#FFC000","#FF8000","red","darkred","black"))
+  
+  get_content <- function() {
+    list(
+      heatmap_type = heatmap_type(),
+      data_type1 = data_type1(),
+      data_type2 = data_type2(),
+      data_type3 = data_type3(),
+      data1 = pre_data1(),
+      data2 = pre_data2(),
+      data3 = pre_data3(),
+      data4 = pre_data4(),
+      route1 = as.character(
+        if (!identical(discord_data()$svc, NULL)) {discord_data()$svc}
+        else {if ("by_bus_svc" %in% heatmap_type()) {input$svc_in} else if ("by_mrt_line" %in% heatmap_type()) {input$mrt_line_in_1}}
+      ),
+      route2 = as.character(route2()),
+      dir1 = as.numeric(
+        if (!identical(discord_data()$dir, NULL)) {discord_data()$dir}
+        else {if ("by_bus_svc" %in% heatmap_type()) {input$dir1_in} else if ("by_mrt_line" %in% heatmap_type()) {input$dir2a_in}}
+      ),
+      dir2 = as.numeric(pre_dir2()),
+      day_filter = day_filter(),
+      time_filter = time_filter(),
+      time_periods = time_periods(),
+      svc_half = svc_half(),
+      sp_ori = sp_ori(),
+      sp_dst = sp_dst()
+    )
+  }
   
   interval2hours <- function(start, end) {
     start <- as.numeric(start)
@@ -330,6 +357,7 @@ server <- function(input, output, session) {
       return(0:23)
     }
   }
+  
   unlist_routes <- function(service) {
     service$routes <- lapply(service$routes, function(route) {
       # Check if all elements in 'route' are atomic.
@@ -464,6 +492,86 @@ server <- function(input, output, session) {
       data_type <- "spec_train"
     }
     return(data_type)
+  }
+  
+  fail <- function(msg, err = NULL) {
+    result_msg(
+      paste0(
+        "<span style='color:#BB0000; font-weight:bold;'>",
+        "<i class='fas fa-triangle-exclamation'></i> ",
+        msg,
+        "</span>"
+      )
+    )
+    if (!is.null(err)) stop(err, call. = FALSE)
+    stop(call. = FALSE)
+  }
+  
+  build_time_filter <- function(time_filter, discord_data, time_periods, input) {
+    if (!time_filter) {
+      return(list(
+        filter = quo(TRUE),
+        label  = "Full Day"
+      ))
+    }
+    valid_hours <- integer()
+    label_parts <- character()
+    
+    periods <- discord_data$time_periods %||%
+      Map(
+        function(s, e) list(time_since = s, time_until = e),
+        time_periods()$time_since_list,
+        time_periods()$time_until_list
+      )
+    
+    for (p in periods) {
+      hrs <- interval2hours(p$time_since, p$time_until)
+      valid_hours <- unique(c(valid_hours, hrs))
+      label_parts <- c(
+        label_parts,
+        sprintf("%02d:00 to %02d:00", p$time_since, p$time_until)
+      )
+    }
+    
+    list(
+      filter = quo(TIME_PER_HOUR %in% valid_hours),
+      label  = if (length(valid_hours) == 24) "Full Day"
+      else paste("From", paste(label_parts, collapse = ", "))
+    )
+  }
+  
+  build_filters <- function(content) {
+    day_expr <- if ("weekday" %in% content$day_filter) {
+      quo(DAY_TYPE == "WEEKDAY")
+    } else if ("weekend_ph" %in% content$day_filter) {
+      quo(DAY_TYPE == "WEEKENDS/HOLIDAY")
+    } else {
+      quo(TRUE)
+    }
+    tf <- build_time_filter(
+      content$time_filter,
+      content$discord_data,
+      content$time_periods,
+      content$input
+    )
+    quo( (!!day_expr) & (!!tf$filter) )
+  }
+  
+  validate_content <- function(content) {
+    dtype1 <- content$dtype1
+    dtype2 <- content$dtype2
+    dtype3 <- content$dtype3
+    type_flags <- grepl("bus", c(dtype1, dtype2, dtype3))
+    if (is.null(dtype1) || is.null(dtype2) || is.null(dtype3)) {
+      fail(paste0("You have not uploaded ", if (is.null(dtype1)) "Datamall origin-destination or transport-node CSVs" else if (is.null(dtype2)) "BusRouter/Repository services/stations JSON" else if (is.null(dtype3)) "BusRouter/Repository stops/station_names JSON", ". What do you wanna see?!"))
+    }
+    if (length(unique(type_flags)) != 1) {
+      fail(paste0("Your uploaded CSV is of type '", dtype1, "', uploaded JSON are of types '", dtype2,"', '", dtype3, "'. Make up your mind!"))
+    }
+    heatmap_data_type <- heatmap_types(htype)
+    if (dtype1 != heatmap_data_type) {
+      fail(paste0("You uploaded some ", dtype1, " data, but you selected a heatmap type that needs ", heatmap_data_type, " data. Make up your mind!"))
+    }
   }
   
   observe({
@@ -627,132 +735,33 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$routes_data_in, {
-    routes <- fromJSON(input$routes_data_in)
-    print(routes[['106']][['1']][[1]])
+    pre_data4(fromJSON(input$routes_data_in))
   })
   
+  process_heatmap_type <- function(type) {
+    
+  }
+  
   result <- eventReactive(list(input$generate, discord_data()), {
-    if (identical(discord_data(), NULL)) {
-      req(input$generate)
-    } else {
-      req(!is.null(discord_data()))
-    }
-    if (is.null(data_type1()) || is.null(data_type2()) || is.null(data_type3())) {
-      tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You have not uploaded ", if (is.null(data_type1())) "Datamall origin-destination or transport-node CSVs" else if (is.null(data_type2())) ", BusRouter/Repository services/stations JSON" else if (is.null(data_type3())) "BusRouter/Repository stops/station_names JSON", ". What do you wanna see?!</span>"))
-        stop("Required data not defined.")
-      }, error = function(e) {
-        print(e$message)
-        stop()
-      })
-    }
-    if (grepl("bus", data_type1()) != grepl("bus", data_type2()) || grepl("bus", data_type2()) != grepl("bus", data_type3())) {
-      tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Your uploaded CSV is of type '", data_type1(), "', uploaded JSON are of types '", data_type2(), "', '", data_type3(), "', make up your mind!</span>"))
-        stop("Data type mismatch.")
-      }, error = function(e) {
-        print(e$message)
-        stop()
-      })
-    }
-    heatmap_data_type <- heatmap_types(heatmap_type())
-    if (data_type1() != heatmap_data_type) {
-      tryCatch({
-        result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> You uploaded some ", data_type1(), " data, but you selected a heatmap type that needs ", heatmap_data_type, " data. Make up your mind!</span>"))
-        stop("Selection of heatmap type not equal to type of uploaded data.")
-      }, error = function(e) {
-        print(e$message)
-        stop()
-      })
-    }
-    data1 <- pre_data1()
-    data2 <- pre_data2()
-    data3 <- pre_data3()
-    route1 <- as.character(route1())
-    route2 <- as.character(route2())
-    dir1 <- as.numeric(pre_dir1())
-    dir2 <- as.numeric(pre_dir2())
-    if (identical(day_filter(), "combined")) {
-      day_type <- "Combined"
-    } else if (identical(day_filter(), "weekday")) {
-      day_type <- "Weekday"
-    } else if (identical(day_filter(), "weekend_ph")) {
-      day_type <- "Weekend/PH"
-    }
-    filter_day_type <- if ("weekday" %in% day_filter()) {
-      quo(DAY_TYPE == "WEEKDAY")
-    } else if ("weekend_ph" %in% day_filter()) {
-      quo(DAY_TYPE == "WEEKENDS/HOLIDAY")
-    } else {
-      quo(TRUE)
-    }
-    if (identical(time_filter(), TRUE)) {
-      time_period <- NULL
-      valid_hours <- NULL
-      if (!identical(discord_data()$time_periods, NULL)) {
-        defined_periods <- discord_data()$time_periods
-        for (name in names(defined_periods)) {
-          period_start <- defined_periods[[name]][["time_since"]]
-          period_end   <- defined_periods[[name]][["time_until"]]
-          period_hours <- interval2hours(period_start, period_end)
-          valid_hours <- sort(unique(c(valid_hours, period_hours)))
-          if (is.null(time_period)) {
-            time_period <- paste0("From ", if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
-          } else {
-            extra_period <- paste0(if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
-            time_period <- paste0(time_period, ", ", extra_period)
-          }
-        }
-      } else {
-        total_periods <- as.numeric(input$more_time_filters)
-        for (i in 1:total_periods) {
-          period_start <- time_periods()$time_since_list[[i]]
-          period_end <- time_periods()$time_until_list[[i]]
-          period_hours <- interval2hours(period_start, period_end)
-          valid_hours <- sort(unique(c(valid_hours, period_hours)))
-          if (i == 1) {
-            time_period <- paste0("From ", if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
-          } else {
-            extra_period <- paste0(if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
-            time_period <- paste0(time_period, ", ", extra_period)
-          }
-        }
-      }
-      if (length(valid_hours) == 24) {time_period <- "Full Day"}
-      filter_time_period <- quo(TIME_PER_HOUR %in% valid_hours)
-    } else {
-      filter_time_period <- quo(TRUE)
-      time_period <- "Full Day"
-    }
-    if ("by_bus_svc" %in% heatmap_type() || "by_mrt_line" %in% heatmap_type()) {
+    content <- get_content()
+    validate_content(content)
+    filter_day_time <- build_filters(content)
+    if ("by_bus_svc" %in% htype || "by_mrt_line" %in% htype) {
       stop_cur <- data2[[route1]]$routes[[dir1]]
       if (is.null(stop_cur)) {
-        tryCatch({
-          if (heatmap_data_type == "od_bus" || heatmap_data_type == "spec_bus") {
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus service. Is your bus service withdrawn?</span>"))
-            stop("Invalid bus service.")
-          } else {
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid MRT/LRT line. Did you crayon your own?</span>"))
-            stop("Invalid MRT/LRT line.")
-          }
-        }, error = function(e) {
-          print(e$message)
-          stop()
-        })
-      }
-      if ("by_mrt_line" %in% heatmap_type()) {
-        stop_cur2 <- data2[[route2]]$routes[[dir2]]
-        if (is.null(stop_cur2)) {
-          tryCatch({
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid MRT/LRT line. Did you crayon your own?</span>"))
-            stop("Invalid MRT/LRT line.")
-          }, error = function(e) {
-            print(e$message)
-            stop()
-          })
+        if (heatmap_data_type == "od_bus" || heatmap_data_type == "spec_bus") {
+          fail("Invalid bus service. Is your bus service withdrawn?")
+        } else {
+          fail("Invalid MRT/LRT line. Did you crayon your own?")
         }
       }
-      if ("by_bus_svc" %in% heatmap_type()) {
+      if ("by_mrt_line" %in% htype) {
+        stop_cur2 <- data2[[route2]]$routes[[dir2]]
+        if (is.null(stop_cur2)) {
+          fail("Invalid MRT/LRT line. Did you crayon your own?")
+        }
+      }
+      if ("by_bus_svc" %in% htype) {
         origin <- data3[[(stop_cur[1])]][[3]]
         terminus <- data3[[(stop_cur[length(stop_cur)])]][[3]]
       } else {
@@ -761,7 +770,7 @@ server <- function(input, output, session) {
       }
       is_2way <- length(data2[[route1]]$routes)
       stop_half <- round(length(stop_cur)/2)
-      if ("by_bus_svc" %in% heatmap_type()) {
+      if ("by_bus_svc" %in% htype) {
         stop_half_opt = svc_half()
         if (is_2way == 2){
           if (identical(stop_half_opt, "1st half")){
@@ -787,21 +796,17 @@ server <- function(input, output, session) {
           }}
       } else {
         stop_cur1a <- stop_cur
-        dir_grah <- paste("dir",dir1)
+        dir_graph <- paste("dir",dir1)
         dir_graph2 <- paste("dir",dir2)
       }
       V <- length(stop_cur1a)
       stop_names <- data.frame(as.character(c(stop_cur1a)),c(1:V))
-      if ("by_bus_svc" %in% heatmap_type()) {
-        for (j in 1:V){
-          stop_names[j,2] <- data3[[(stop_cur1a[j])]][[3]]
-        }
-      } else {
-        for (j in 1:V){
-          stop_names[j,2] <- data3[[(stop_cur1a[j])]][[1]]
-        }
-      }
-      if ("by_mrt_line" %in% heatmap_type() && route1 != route2) {
+      stop_names[,2] <- vapply(
+        stop_cur1a,
+        function(x) data3[[x]][[ if ("by_bus_svc" %in% htype) 3 else 1 ]],
+        character(1)
+      )
+      if ("by_mrt_line" %in% htype && route1 != route2) {
         W <- length(stop_cur2)
         stop_names2 <- data.frame(as.character(c(stop_cur2)),c(1:W))
         for (j in 1:W){
@@ -811,16 +816,16 @@ server <- function(input, output, session) {
         stop_names2 <- NULL
       }
       stop_cur1a <- compound_route(stop_cur1a, data1)
-      if ("by_mrt_line" %in% heatmap_type()) {
+      if ("by_mrt_line" %in% htype) {
         stop_cur2 <- compound_route(stop_cur2, data1)
       }
       stop_cur0a <- data.frame(org = 1:V, ORIGIN_PT_CODE = stop_cur1a)
-      if ("by_bus_svc" %in% heatmap_type() || route1 == route2) {
+      if ("by_bus_svc" %in% htype || route1 == route2) {
         stop_cur0b <- data.frame(dst = 1:V, DESTINATION_PT_CODE = stop_cur1a)
       } else {
         stop_cur0b <- data.frame(dst = 1:W, DESTINATION_PT_CODE = stop_cur2)
       }
-      dataod1 <- data1 %>% {if ("by_bus_svc" %in% heatmap_type() || route1 == route2) {
+      dataod1 <- data1 %>% {if ("by_bus_svc" %in% htype || route1 == route2) {
         filter(., ORIGIN_PT_CODE %in% stop_cur1a | is.na(ORIGIN_PT_CODE),
                DESTINATION_PT_CODE %in% stop_cur1a | is.na(DESTINATION_PT_CODE),
                !!filter_day_type, !!filter_time_period) 
@@ -837,7 +842,7 @@ server <- function(input, output, session) {
         dataod1 <- bind_rows(dataod1, extra_rows) %>%
           distinct(ORIGIN_PT_CODE, DESTINATION_PT_CODE, .keep_all = TRUE)  # Ensure uniqueness
       }
-      if ("by_bus_svc" %in% heatmap_type() || route1 == route2) {
+      if ("by_bus_svc" %in% htype || route1 == route2) {
         missing_dst <- setdiff(stop_cur1a, unique(dataod1$DESTINATION_PT_CODE)) # Check for missing destination stops
         if (length(missing_dst) > 0) {
           extra_rows <- tibble(ORIGIN_PT_CODE = missing_dst, DESTINATION_PT_CODE = missing_dst, total = 0)  # Ensure uniqueness
@@ -866,7 +871,7 @@ server <- function(input, output, session) {
         filter(dst != 0)  # Keeps all valid rows, removes the incorrect one
       # For column names, only take away 1st destination and final origin stop if of type
       # "by_bus_svc" or if both MRT lines are the same
-      if ("by_bus_svc" %in% heatmap_type()) {
+      if ("by_bus_svc" %in% htype) {
         stop_cur1b <- stop_cur1a[1:V-1]
         stop_cur1c <- stop_cur1a[2:V]
       } else {
@@ -882,7 +887,7 @@ server <- function(input, output, session) {
       # Removes 1st col which is descriptor 
       dataod1c <- dataod1c[,-1]
       # Removes only the 1st row and last col if of type "by_bus_svc"
-      if ("by_bus_svc" %in% heatmap_type()) {
+      if ("by_bus_svc" %in% htype) {
         if (ncol(dataod1c)!=(V-1)){
           dataod1c <- dataod1c[,-ncol(dataod1c)]
         }
@@ -893,7 +898,7 @@ server <- function(input, output, session) {
       # Insert column/row names used for ordering
       colnames(dataod1c) <- paste(stop_cur1b)
       rownames(dataod1c) <- paste(stop_cur1c)
-      if ("by_bus_svc" %in% heatmap_type() || route1 == route2) {
+      if ("by_bus_svc" %in% htype || route1 == route2) {
         max_length <- 2 * max(nchar(stop_names[,2]))
       } else {
         max_length <- 2 * max(nchar(stop_names2[,2]))
@@ -904,26 +909,26 @@ server <- function(input, output, session) {
       stop_names_in_row <- ("row_names" %in% input$stop_names || display_stop_names()$rows == TRUE)
       row_labels <- get_labels(stop_names_in_row, "row", route1, route2, stop_names, stop_names2)
       # Heatmap legend names
-      lgd_name1 <- if ("by_bus_svc" %in% heatmap_type()) {
+      lgd_name1 <- if ("by_bus_svc" %in% htype) {
         paste("O-D matrix (en-route)\n",data1$YEAR_MONTH[[1]],"\n",day_type," Demand\n\nService ",route1,"\n",dir_graph,"\n",terminus," Bound\n",sep = "")
       } else if (route1 == route2) {
         paste("O-D matrix (en-route)\n",data1$YEAR_MONTH[[1]],"\n",day_type," Demand\n\n",route1," dir ",dir1," as origin\nand destinatn\n",terminus," Bound\n",sep = "")
       } else {
         paste("O-D matrix (en-route)\n",data1$YEAR_MONTH[[1]],"\n",day_type," Demand\n\n",route1," dir ",dir1," as origin\n",route2," dir ",dir2," as destinatn\n",route1," ",terminus," Bound\n",route2," ",terminus2," Bound\n",sep = "")
       }
-      col_title1 <- if ("by_bus_svc" %in% heatmap_type()) {
+      col_title1 <- if ("by_bus_svc" %in% htype) {
         paste0(time_period,"\nOrigin Bus Stops")
       } else {
         paste0(time_period,"\n",route1," dir ",dir1," as origin line")
       }
-      row_title1 <- if ("by_bus_svc" %in% heatmap_type()) {
+      row_title1 <- if ("by_bus_svc" %in% htype) {
         paste("Destination Bus Stops")
       } else {
         paste(route2," dir ",dir2,"as destination line")
       }
       # Coloured text for lines
-      line_col1a <- if ("by_mrt_line" %in% heatmap_type()) {line_cols[[route1]]} else {"#000000"}
-      line_col1b <- if ("by_mrt_line" %in% heatmap_type()) {line_cols[[route2]]} else {"#000000"}
+      line_col1a <- if ("by_mrt_line" %in% htype) {line_cols[[route1]]} else {"#000000"}
+      line_col1b <- if ("by_mrt_line" %in% htype) {line_cols[[route2]]} else {"#000000"}
       # Heatmap size
       img_dims <- list(width = 39 * ncol(dataod1c) + 380, height = 22 * nrow(dataod1c) + 240)
       # Stats
@@ -978,17 +983,11 @@ server <- function(input, output, session) {
     } else {
       ori_stops <- str_split(sp_ori(), ",")
       l_ori <- length(ori_stops[[1]])
-      if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+      if (htype == "by_specific_stops" || htype == "by_specific_stns") {
         dst_stops <- str_split(sp_dst(), ",")
         l_dst <- length(dst_stops[[1]])
         if (l_ori != l_dst) {
-          tryCatch({
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> The lengths of your origin bus stops/stations and destination bus stops/stations do not match.</span>"))
-            stop("Length of origin stops/stations not equal to length of destination stops/stations.")
-          }, error = function(e) {
-            print(e$message)
-            stop()
-          })
+          fail("The lengths of your origin bus stops/stations and destination bus stops/stations do not match.")
         }
       }
       dataod2 <- data.frame(c(1:l_ori), c(1:l_ori), c(1:l_ori))
@@ -999,7 +998,7 @@ server <- function(input, output, session) {
         ori_stop <- trimws(ori_stops[[1]][[t]])
         ori_stop2 <- compound_route(ori_stop, data1)
         dataod2[t, 1] <- ori_stop2
-        if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+        if (htype == "by_specific_stops" || htype == "by_specific_stns") {
           dst_stop <- trimws(dst_stops[[1]][[t]])
           dst_stop2 <- compound_route(dst_stop, data1)
           dataod2[t, 2] <- dst_stop2
@@ -1013,15 +1012,9 @@ server <- function(input, output, session) {
             !!filter_day_type, !!filter_time_period))
         }
         if (valid_stops == 0) {
-          tryCatch({
-            result_msg(paste0("<span style='color:#BB0000; font-weight:bold;'><i class='fas fa-triangle-exclamation'></i> Invalid bus stop / MRT/LRT station code(s) detected!", if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") " Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B.</span>"))
-            stop("Invalid stop codes", if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") " or no demand." else ".")
-          }, error = function(e) {
-            print(e$message)
-            stop()
-          })
+          fail(paste0("Invalid bus stop / MRT/LRT station code(s) detected!", if (htype == "by_specific_stops" || htype == "by_specific_stns") " Check your codes to see if it's a proper O-D pair, or there's absolutely no one going from A to B."))
         }
-        if (heatmap_type() == "by_specific_stops" || heatmap_type() == "by_specific_stns") {
+        if (htype == "by_specific_stops" || htype == "by_specific_stns") {
           dataod2[t, 3] <- data1 %>%
             filter(., ORIGIN_PT_CODE == dataod2[t, 1],
               DESTINATION_PT_CODE == dataod2[t, 2],
@@ -1047,25 +1040,25 @@ server <- function(input, output, session) {
             as.numeric()
         }
         if ("row_names" %in% input$stop_names || display_stop_names()$cells == TRUE) {
-          if ("by_specific_stops" %in% heatmap_type()) {
+          if ("by_specific_stops" %in% htype) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[3]]
             dataod2a[t, 2] <- data3[[as.character(dst_stop)]][[3]]
-          } else if ("by_specific_stns" %in% heatmap_type()) {
+          } else if ("by_specific_stns" %in% htype) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[1]]
             dataod2a[t, 2] <- data3[[as.character(dst_stop)]][[1]]
-          } else if ("by_specific_stop" %in% heatmap_type()) {
+          } else if ("by_specific_stop" %in% htype) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[3]]
-          } else if ("by_specific_stn" %in% heatmap_type()) {
+          } else if ("by_specific_stn" %in% htype) {
             dataod2a[t, 1] <- data3[[as.character(ori_stop)]][[1]]
           }
         }
         dataod2[t, 1] <- ori_stop
-        if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+        if ("by_specific_stops" %in% htype || "by_specific_stns" %in% htype) {
           dataod2[t, 2] <- dst_stop
         }
       }
       # To base10 from base36, allowing station codes to be stored as numbers.
-      if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+      if ("by_specific_stops" %in% htype || "by_specific_stns" %in% htype) {
         # The first 2 columns to store origin stops and destination stops.
         for (j in 1:2) {
           dataod2[,j] <- base_to_decimal(dataod2[,j],36)
@@ -1077,15 +1070,15 @@ server <- function(input, output, session) {
       dataod2 <- as.matrix(dataod2)
       dataod2a <- as.matrix(dataod2a)
       img_dims <- list(width = 520, height = 24 * nrow(dataod2) + 100)
-      column_title <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+      column_title <- if ("by_specific_stops" %in% htype || "by_specific_stns" %in% htype) {
           "O-D Matrix for specific stops/stations"} else {
           "Tap ins and outs for specific stops/stations"
         }
-      column_labels <- if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+      column_labels <- if ("by_specific_stops" %in% htype || "by_specific_stns" %in% htype) {
           c("Origin", "Destination", "Demand")} else {
           c("Stop", "Tap ins", "Tap outs")
           }
-      heatmap_legend_col <- if (day_filter() == "combined" && !time_filter()) {cols2} else {cols}
+      heatmap_legend_col <- cols
       interval2 <- if (day_filter() == "combined" && !time_filter()) {c(0,1E5,2E5,3E5,4E5,5E5,6E5,7E5,8E5,9E5,1E6,11E5,12E5,13E5,14E5,15E5,16E5,17E5,18E5,19E5,2E6)
         } else {c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6)}
       img <- Heatmap(dataod2,
@@ -1109,7 +1102,7 @@ server <- function(input, output, session) {
         column_title_gp = gpar(fontsize = 25),
         heatmap_legend_param = list(labels_gp = gpar(fontsize = 12), legend_width = unit(10, "cm"), legend_direction = "horizontal", at = c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6), legend_width = unit(2, "cm"), color_bar = "continuous", break_dist = 1, title_position = "topcenter", heatmap_legend_side = "top", title_gp = gpar(fontsize = 12, fontface = "bold")),
         cell_fun = function(j, i, x, y, width, height, fill) {
-          if ("by_specific_stops" %in% heatmap_type() || "by_specific_stns" %in% heatmap_type()) {
+          if ("by_specific_stops" %in% htype || "by_specific_stns" %in% htype) {
             # Rows 1 and 2 are not coloured.
             if(j %in% c(1, 2)) {
               # Draw a white background covering the cell.
@@ -1184,9 +1177,9 @@ server <- function(input, output, session) {
     png(filename = temp_file, width = img_width, height = img_height, units = "px", res = 96)
     grid::grid.newpage()
     heatmap_type_names = list("by_bus_svc" = "'By bus service'" , "by_specific_stops" = "'By specific stops'", "by_mrt_line" = "By MRT/LRT line", "by_specific_stns" = "By specific stations")
-    heatmap_type_name = heatmap_type_names[[heatmap_type()]]
+    heatmap_type_name = heatmap_type_names[[htype]]
     # Draw the heatmap
-    if ("by_bus_svc" %in% heatmap_type() || "by_mrt_line" %in% heatmap_type()) {
+    if ("by_bus_svc" %in% htype || "by_mrt_line" %in% htype) {
       req(result())
       draw(result()$img)
       result_msg(paste("<span style='color:#00DD00; font-weight:bold;'><i class='fas fa-square-check'></i> Heatmap of type",heatmap_type_name,"successfully drawn!</span>"))
@@ -1204,22 +1197,20 @@ server <- function(input, output, session) {
       alt = "Demand Heatmap"
     )
   }
-  output$result_out <- renderImage({
-    req(result())
-    draw_heatmap(result()$img, result()$img_dims)
-  }, deleteFile = FALSE)
-  discord_image <- eventReactive(result(), {
-    req(result())
-    discord_img <- draw_heatmap(result()$img, result()$img_dims)
-    session$sendCustomMessage("send_image", discord_img)
-  })
-  observe(result())
   output$upload_conf <- renderText({HTML(conf_msg())})
   output$upload_conf2 <- renderText({HTML(conf_msg2())})
   output$upload_conf3 <- renderText({HTML(conf_msg3())})
   output$result_conf <- renderText({HTML(result_msg())})
   output$result_conf2 <- renderText({HTML(result_msg())})
 }
+
+observeEvent(result(), {
+  heatmap_image(draw_heatmap(result()$img, result()$img_dims))
+})
+
+output$result_out <- renderImage({
+  heatmap_image()
+}, deleteFile = FALSE)
 
 shinyApp(ui, server)
 shinyApp(ui = ui, server = server)
