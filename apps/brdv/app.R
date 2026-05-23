@@ -515,7 +515,7 @@ server <- function(input, output, session) {
     list(
       filter = quo(TIME_PER_HOUR %in% valid_hours),
       label  = if (length(valid_hours) == 24) "Full Day"
-      else paste("From", paste(label_parts, collapse = ", "))
+      else paste(label_parts, collapse = ", ")
     )
   }
   
