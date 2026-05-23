@@ -497,20 +497,19 @@ server <- function(input, output, session) {
     }
     valid_hours <- integer()
     label_parts <- character()
-    
-    periods <- Map(
-      function(s, e) list(time_since = s, time_until = e),
-      time_periods()$time_since_list,
-      time_periods()$time_until_list
-    )
-    
-    for (p in periods) {
-      hrs <- interval2hours(p$time_since, p$time_until)
-      valid_hours <- unique(c(valid_hours, hrs))
-      label_parts <- c(
-        label_parts,
-        sprintf("%02d:00 to %02d:00", p$time_since, p$time_until)
-      )
+    total_periods <- as.numeric(input$more_time_filters)
+
+    for (i in 1:total_periods) {
+      period_start <- time_periods$time_since_list[[i]]
+      period_end <- time_periods$time_until_list[[i]]
+      period_hours <- interval2hours(period_start, period_end)
+      valid_hours <- sort(unique(c(valid_hours, period_hours)))
+      if (i == 1) {
+        label_parts <- paste0("From ", if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
+      } else {
+        new_part <- paste0(if (nchar(period_start) == 2) period_start else paste0("0", period_start), ":00 to ", if (nchar(period_end) == 2) period_end else paste0("0", period_end), ":00")
+        time_period <- paste0(label_parts, ", ", new_part)
+      }
     }
     
     list(
