@@ -789,7 +789,6 @@ server <- function(input, output, session) {
   }
   
   result <- eventReactive(input$generate, {
-    print("Generation started.")
     ct <- get_content()
     validate_content(ct)
     heatmap_type <- ct$heatmap_type
@@ -817,7 +816,6 @@ server <- function(input, output, session) {
     } else if (day_filter == "weekend_ph") {
       day_type <- "Weekend/PH"
     }
-    print("Data initialised.")
     if ("by_bus_svc" %in% heatmap_type || "by_mrt_line" %in% heatmap_type) {
       stop_cur <- data2[[route1]]$routes[[dir1]]
       if (is.null(stop_cur)) {
@@ -888,7 +886,6 @@ server <- function(input, output, session) {
       } else {
         stop_names2 <- NULL
       }
-      print("O-D by route step 1 done.")
       stop_cur1a <- compound_route(stop_cur1a, data1)
       if ("by_mrt_line" %in% heatmap_type) {
         stop_cur2 <- compound_route(stop_cur2, data1)
@@ -931,7 +928,6 @@ server <- function(input, output, session) {
             filter(DESTINATION_PT_CODE %in% stop_cur2)  # Ensure proper alignment
         }
       }
-      print("O-D by route step 2 done.")
       # Creates a table to note down the order of bus stops along a bus service or MRT line for each O-D pair
       dataod1a <- full_join(dataod1, stop_cur0a, by="ORIGIN_PT_CODE")
       dataod1a <- full_join(dataod1a, stop_cur0b, by="DESTINATION_PT_CODE")
@@ -1101,7 +1097,6 @@ server <- function(input, output, session) {
       dataod2a <- data.frame(c(1:l_ori), c(1:l_ori))
       colnames(dataod2) <- c("ori", "dst", "dmd")
       colnames(dataod2a) <- c("ori_name", "dst_name")
-      print("Tr node step 1 done.")
       for (t in 1:l_ori) {
         ori_stop <- trimws(ori_stops[[1]][[t]])
         ori_stop2 <- compound_route(ori_stop, data1)
@@ -1162,7 +1157,6 @@ server <- function(input, output, session) {
           dataod2[t, 2] <- dst_stop
         }
       }
-      print("Tr node step 2 done.")
       # To base10 from base36, allowing station codes to be stored as numbers.
       if ("by_specific_stops" %in% heatmap_type || "by_specific_stns" %in% heatmap_type) {
         # The first 2 columns to store origin stops and destination stops.
@@ -1187,7 +1181,6 @@ server <- function(input, output, session) {
       heatmap_legend_col <- cols
       interval2 <- if (day_filter() == "combined" && !time_filter()) {c(0,1E5,2E5,3E5,4E5,5E5,6E5,7E5,8E5,9E5,1E6,11E5,12E5,13E5,14E5,15E5,16E5,17E5,18E5,19E5,2E6)
       } else {c(0,1E2,5E2,1E3,5E3,1E4,5E4,1E5,5E5,1E6)}
-      print("Tr node step 3 done.")
       img <- Heatmap(dataod2,
         name = paste(day_type, "Demand,", time_period),
         show_column_dend = FALSE,

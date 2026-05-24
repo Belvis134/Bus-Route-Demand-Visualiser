@@ -161,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return response.json();
       })
       .then(function(busrouter_data) {
-        Shiny.setInputValue('json_data_in', busrouter_data);
+        Shiny.setInputValue('json_data_in', JSON.stringify(busrouter_data));
         document.getElementById('upload_conf2').innerHTML =
           `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> ${(data_type === "bus") ? "BusRouter" : "MRT lines and station names"} data import from repository successful!</span>`;
       })
