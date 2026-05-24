@@ -234,6 +234,7 @@ ui <- fluidPage(
       tags$div(tags$h4(strong(tags$i(icon("calculator")),"If required, select your statistical computations. (WIP)"))),
       checkboxInput("show_below_30","Show data below 30"),
       checkboxInput("monthly_mean","Calculate monthly mean depending on days in a month"),
+      checkboxInput("service_weightage", "Weigh the trips depending on the service's distance between an O-D pair and its headway (frequency)."),
       checkboxInput("percentage_departures","Calculate the proportion of departures from a specific station to another station"),
       checkboxInput("percentage_arrivals","Calculate the proportion of arrivals to a specific station from another station"),
       checkboxInput("data_mean","Calculate the mean of the data included in your heatmap"),
@@ -299,6 +300,10 @@ server <- function(input, output, session) {
     c("white","#80C0FF","#00C0FF","#80F080","green","#C0FF00","yellow","#FFC000","#FF8000","red","darkred","black"))
   
   get_content <- function() {
+    # service_weightage <- service_weighing()
+    # if (service_weightage) {
+    #   while (is.null(pre_data4())) Sys.sleep(5)
+    # }
     return(list(
       heatmap_type = heatmap_type(),
       data_type1 = data_type1(),
@@ -308,6 +313,7 @@ server <- function(input, output, session) {
       data2 = pre_data2(),
       data3 = pre_data3(),
       data4 = pre_data4(),
+      # service_weightage = service_weightage,
       route1 = as.character(
         if ("by_bus_svc" %in% heatmap_type()) {input$svc_in} else if ("by_mrt_line" %in% heatmap_type()) {input$mrt_line_in_1}
       ),
@@ -708,9 +714,75 @@ server <- function(input, output, session) {
     session$sendCustomMessage("fetch_routes", datamall_params2())
   })
   
-  observeEvent(input$routes_data_in, {
-    pre_data4(fromJSON(input$routes_data_in))
+  observeEvent(input$services_data_in, {
+    pre_data4(fromJSON(input$services_data_in))
   })
+  
+  service_weighing <- function(data2, data4, ori, dst, freq_type) {
+    cfm_routes <- list()
+    
+    for (svc in names(data2)) {
+      dir_keys <- as.integer(names(data2[[svc]]$routes))
+      for (dir_key in dir_keys) {
+        route <- data2[[svc]]$routes[[as.character(dir_key)]]
+        if (!(ori %in% route && dst %in% route)) next
+        
+        dir <- dir_key + 1
+        if (is.null(cfm_routes[[svc]])) cfm_routes[[svc]] <- list()
+        if (is.null(cfm_routes[[svc]][[as.character(dir)]])) cfm_routes[[svc]][[as.character(dir)]] <- list()
+        
+        # Find origin and destination distances
+        for (stop in data4[[svc]][[as.character(dir)]]$routes) {
+          stopName <- stop[[2]]
+          stopDist <- stop[[3]]
+          if (stopName == ori && is.null(cfm_routes[[svc]][[as.character(dir)]]$ori_dist)) {
+            cfm_routes[[svc]][[as.character(dir)]]$ori_dist <- stopDist
+          }
+          if (stopName == dst && is.null(cfm_routes[[svc]][[as.character(dir)]]$dst_dist)) {
+            cfm_routes[[svc]][[as.character(dir)]]$dst_dist <- stopDist
+          }
+          if (!is.null(cfm_routes[[svc]][[as.character(dir)]]$ori_dist) && 
+              !is.null(cfm_routes[[svc]][[as.character(dir)]]$dst_dist)) break
+        }
+        
+        # Distance difference
+        diff_dist <- cfm_routes[[svc]][[as.character(dir)]]$dst_dist - cfm_routes[[svc]][[as.character(dir)]]$ori_dist
+        cfm_routes[[svc]][[as.character(dir)]]$diff_dist <- format(round(diff_dist, 1), nsmall = 1)
+        
+        # Frequency calculation
+        freq_list <- as.numeric(data4[[svc]][[as.character(dir)]]$freq)
+        freq <- NA_real_
+        if (freq_type == "avg") {
+          valid <- freq_list[freq_list > 0]
+          freq <- if(length(valid) > 0) mean(valid) else NA_real_
+        } else if (freq_type == "am") {
+          valid <- freq_list[1:2]
+          valid <- valid[valid > 0]
+          freq <- if(length(valid) > 0) mean(valid) else NA_real_
+        } else if (freq_type == "pm") {
+          valid <- freq_list[3:length(freq_list)]
+          valid <- valid[valid > 0]
+          freq <- if(length(valid) > 0) mean(valid) else NA_real_
+        } else if (freq_type == "am_peak") {
+          freq <- freq_list[1]
+        } else if (freq_type == "am_offpeak") {
+          freq <- freq_list[2]
+        } else if (freq_type == "pm_peak") {
+          freq <- freq_list[3]
+        } else if (freq_type == "pm_offpeak") {
+          freq <- freq_list[4]
+        }
+        
+        cfm_routes[[svc]][[as.character(dir)]]$freq <- format(round(freq, 3), nsmall = 3)
+        
+        if (is.na(freq) || freq == 0) {
+          cfm_routes[[svc]] <- NULL
+        }
+      }
+    }
+    
+    return(cfm_routes)
+  }
   
   process_heatmap_type <- function(type) {
     
@@ -736,6 +808,7 @@ server <- function(input, output, session) {
     sp_dst <- ct$sp_dst
     filter_day_time <- build_filters(ct)
     time_period <- build_time_filter(time_filter, time_periods)$label
+    service_weightage <- ct$service_weightage
     if (day_filter == "combined") {
       day_type <- "Combined"
     } else if (day_filter == "weekday") {
@@ -930,7 +1003,39 @@ server <- function(input, output, session) {
       img_dims <- list(width = 39 * ncol(dataod1c) + 380, height = 22 * nrow(dataod1c) + 240)
       # Stats
       if (input$monthly_mean) {
-        dataod1c <- dataod1c/30
+        current_month <- as.numeric(format(Sys.Date(), "%m"))
+        current_year <- as.numeric(format(Sys.Date(), "%Y"))
+        if (current_month %in% c(1, 3, 5, 7, 8, 10, 12)) {dataod1c <- dataod1c/31}
+        else if (current_month %in% c(4, 6, 9, 11)) {dataod1c <- dataod1c/30}
+        else if (current_month %in% 2 && current_year %% 4 == 0) {dataod1c <- dataod1c/29}
+        else if (current_month %in% 2) {dataod1c <- dataod1c/28}
+      }
+      if (input$service_weightage) {
+        for (row in stop_cur1c) {
+          for (col in stop_cur1b) {
+            if (row == col) next
+            dests_indexes <- which(stop_cur1c == row)
+            skip <- FALSE
+            for (idx in dests_indexes) {
+              if ((which(ctop_cur1b == col) > idx) && (which(stop_cur1c == row)[1] != 1)) {
+                skip <- TRUE
+                break
+              }
+            }
+            if (skip) next
+            
+            service_info <- service_weighing(data2, data4, col, row, freq)
+            total <- 0
+            for (svc in names(service_info)) {
+              dir <- names(service_info[[svc]])[1]
+              info <- service_info[[svc]][[dir]]
+              weight <- 1 / ((as.numeric(info$diff_dist)^2) * as.numeric(info$freq))
+              total <- total + weight
+              if (svc == route1) svc_weight <- weight
+            }
+            dataod1c[row, col] <- round((svc_weight/total) * dataod1c[row, col])
+          }
+        }
       }
       # Heatmap config
       img <- Heatmap(dataod1c,
