@@ -809,7 +809,7 @@ server <- function(input, output, session) {
     sp_dst <- ct$sp_dst
     filter_day_time <- build_filters(ct)
     time_period <- build_time_filter(time_filter, time_periods)$label
-    service_weightage <- ct$service_weightage
+    # service_weightage <- ct$service_weightage
     if (day_filter == "combined") {
       day_type <- "Combined"
     } else if (day_filter == "weekday") {

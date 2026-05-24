@@ -175,21 +175,15 @@ document.addEventListener('DOMContentLoaded', function() {
   Shiny.addCustomMessageHandler('fetch_routes', function(params) {
     document.getElementById('result_conf2').innerHTML =
       '<span style=\"color:#2050C0; font-weight:bold;\"><i class=\"fas fa-hourglass-half\"></i> Importing from Datamall, please wait...</span>';
-    // var datamall_date_raw = document.getElementById("datamall_date").value;
-    // // Convert dates from "yyyy-mm" to the file format "yyyymm" (remove dash).
-    // var datamall_date = datamall_date_raw.replace("-", "");
-    const data_type = 'routes' // document.getElementById("datamall_data_type").value;
-    const data_type2 = 'bus' // document.getElementById("datamall_data_type2").value;
-    // if (!datamall_date_raw) {
-    //   throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
-    // }
+    const data_type = 'services'
+    const data_type2 = 'bus'
     const encoded_account_key = encodeURIComponent(params.account_key);
-    const csv_proxy_url = 'https://stcraft.myddns.me/datamall-proxy' +
+    const service_info_url = 'https://stcraft.myddns.me/datamall-proxy' +
       '?date=' + datamall_date +
       '&account_key=' + encoded_account_key +
       '&data_type=' + data_type +
       '&data_type2=' + data_type2;
-    fetch(csv_proxy_url)
+    fetch(service_info_url)
       .then(response => {
         if (!response.ok) {
           return response.json().then(text => {
@@ -200,11 +194,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return response.json();
       })
-      .then(function(routes_json) {
+      .then(function(services_json) {
         // Pass the JSON to Shiny.
-        Shiny.setInputValue('routes_data_in', JSON.stringify(routes_json))
+        Shiny.setInputValue('services_data_in', JSON.stringify(services_json))
         document.getElementById('result_conf2').innerHTML =
-          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Routes data import from Datamall successful!</span>`;
+          `<span style="color:#00DD00; font-weight:bold;"><i class="fas fa-square-check"></i> Routes/Services data import from Datamall successful!</span>`;
       })
       .catch(err => {
         console.error(err);
