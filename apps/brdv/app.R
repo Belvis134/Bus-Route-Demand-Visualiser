@@ -38,7 +38,7 @@ if (current_day >= 10) {
     max_month <- paste0(current_year,"-",current_month-2)
   }
 }
-repo_min_month <- "2025-03"
+repo_min_month <- "2023-10"
 if (current_day >= 2) {
   busrouter_max_month <- paste0(current_year,"-",current_month)
 } else {
@@ -142,7 +142,7 @@ ui <- fluidPage(
         fluidRow(
           splitLayout(
             paste(""),
-            airDatepickerInput("busrouter_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = repo_min_month, maxDate = busrouter_max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
+            airDatepickerInput("busrouter_date", HTML(paste(icon("calendar"), "Select Date")), value = NULL, minDate = "2025-03", maxDate = busrouter_max_month, dateFormat = "yyyy-MM", view = "months", minView = "months", width = "100px", addon = "none", readonly = TRUE, autoClose = TRUE),
             div(class = "import_shift", actionButton("import_repository2", "Import from repository", icon = icon("file-import"), width = "180px")),
             cellWidths = c("10px","100px","180px")
           )
