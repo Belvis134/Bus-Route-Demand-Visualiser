@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function() {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     const encoded_account_key = encodeURIComponent(params.account_key);
-    const csv_proxy_url = 'https://stcraft.myddns.me/datamall-proxy' +
+    const csv_proxy_url = 'https://belvis.cc/datamall-proxy' +
       '?date=' + datamall_date +
       '&account_key=' + encoded_account_key +
       '&data_type=' + data_type +
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Fetch Datamall CSV data from repository via its dedicated endpoint:
-    var datamall_repository = `https://stcraft.myddns.me/repository/datamall?datamall_date=${datamall_date}&data_type=${data_type}&data_type2=${data_type2}`;
+    var datamall_repository = `https://belvis.cc/repository/datamall?datamall_date=${datamall_date}&data_type=${data_type}&data_type2=${data_type2}`;
     fetch(datamall_repository)
       .then(response => {
         if (!response.ok) {
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function() {
       throw new Error("Date not defined. If you are requesting BusRouter data from repository, you need a date!")
     }
     // Fetch BusRouter or MRT line and station names JSON data from repository via a dedicated endpoint:
-    const endpoint = `https://stcraft.myddns.me/repository/busrouter?busrouter_date=${busrouter_date}&data_type=${data_type}`
+    const endpoint = `https://belvis.cc/repository/busrouter?busrouter_date=${busrouter_date}&data_type=${data_type}`
     fetch(endpoint)
       .then(response => {
         if (!response.ok) {
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const data_type = 'services'
     const data_type2 = 'bus'
     const encoded_account_key = encodeURIComponent(params.account_key);
-    const service_info_url = 'https://stcraft.myddns.me/datamall-proxy' +
+    const service_info_url = 'https://belvis.cc/datamall-proxy' +
       '?date=' + datamall_date +
       '&account_key=' + encoded_account_key +
       '&data_type=' + data_type +
